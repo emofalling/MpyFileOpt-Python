@@ -1,0 +1,58 @@
+#CODES:
+    ANS aaH
+    ERR 55H
+    SUC 99H
+    BOOL&NONE:
+        TRUE  01H
+        FALSE 00H
+        NONE  02H
+    INT:
+        XXH XXH XXH XXH (4 bytes, int)
+    UINT:
+        XXH XXH XXH XXH (4 bytes, uint)
+    STRING:
+        UINT(length) + string
+    LIST[STRING]:
+        UINT(list_length) + [len:list_length]{
+            STRING
+        }
+
+    GWD   10H (get work dir)
+    SWD   11H (set work dir)
+    LSDIR 12H (list dir)
+
+    RESET FFH
+
+Reset micropython device:
+    ==RESET [!:com.state."DSR/DTR" == false]{com.DTR = false; sleep(>0); com.DTR = true}
+    ==WAIT  (wait("\n>>>" in com.buffer))
+Send code to micropython device:
+    ==SEND (com.buffer += "exec(\"${file:/src/on_micropython/main.py}\n\")")
+Link to micropython device:
+    ::Reset micropython device
+    ::Send code to micropython device
+    ==WAIT (wait("$ANS" in com.buffer))
+Get Work Dir:
+    ==SEND (com.buffer += GWD)
+    ==WAIT (wait("${SUC|ERR}" in com.buffer))
+    if($==SUC){
+        ==READ (STRING from com.buffer) (work_dir)
+    }elif($==ERR){
+        ==READ (STRING from com.buffer) (error_msg)
+    }
+Set Work Dir:
+    ==SEND (com.buffer += SWD + STRING(work_dir))
+    ==WAIT (wait("${SUC|ERR}" in com.buffer))
+    if($==SUC){
+        ; (change success)
+    }elif($==ERR){
+        ==READ (STRING from com.buffer) (error_msg)
+    }
+Reset micropython device:
+    ==SEND (com.buffer += RESET)
+    ==WAIT (wait("${SUC|ERR}" in com.buffer))
+    if($==SUC){
+        ; (reset success)
+    }elif($==ERR){
+        ==READ (STRING from com.buffer) (error_msg)
+    }
