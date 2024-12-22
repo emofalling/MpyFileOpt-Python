@@ -172,4 +172,4 @@ cython_debug/
 
 
 # Custom
-/src/test.py
+src/test.py

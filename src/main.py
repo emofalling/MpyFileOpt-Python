@@ -19,8 +19,10 @@ ANS = b"\xaa" # Answer
 ERR = b"\x55" # Error
 SUC = b"\x99" # Success
 
-GWD = b"\x10" # getcwd / getcwd()
-SWD = b"\x11" # setcwd / chdir()
+GWD = b"\x10" # getcwd
+SWD = b"\x11" # setcwd
+
+RST = b"\xff" # reset
 
 class MpyFileOptError(Exception):
     pass
@@ -50,8 +52,8 @@ class MpyFileOpt:
                                  inter_byte_timeout, # inter_byte_timeout
                                 )
         self._connect()
-    def _dev_raise(self, errstr: bytes) -> None:
-        raise MpyFileOptError("On getcwd(): In Micropython Device: \n    {}".format(errstr.decode(encoding)))
+    def _dev_raise(self, funcname: str, errstr: bytes) -> None:
+        raise MpyFileOptError("On {}(): In Micropython Device: \n    {}".format(funcname, errstr.decode(encoding)))
     def _dev_reset(self) -> None:
         self.ser.dtr = False
         time.sleep(0.01)
@@ -77,7 +79,7 @@ class MpyFileOpt:
     def _com_wait_ans(self):
         while True:
             #rdall = self.ser.read_all()
-            #print(rdall.decode(encoding),end="")
+            #print(rdall.decode(encoding, "ignore"),end="")
             #if ANS in rdall:
             #    break
             if self.ser.read(1) == ANS:
@@ -107,10 +109,10 @@ class MpyFileOpt:
         len = self._com_read_uint()
         return self.ser.read(len)
     def _com_write_string(self, str: bytes) -> None:
-        self.ser.write(self._com_write_uint(len(str)))
+        self._com_write_uint(len(str))
         self.ser.write(str)
     
-    def getcwd(self, str: bool = True, verbose: bool = False) -> str | bytes:
+    def getcwd(self, str: bool = True, *, verbose: bool = False) -> str | bytes:
         if verbose: print("[1/4] Send command GWD...")
         self.ser.write(GWD)
         if verbose: print("[2/4] Wait answer...")
@@ -124,31 +126,34 @@ class MpyFileOpt:
             if verbose: print("[3/4] Failed, Read error string...")
             err = self._com_read_string()
             if verbose: print("[4/4] Done.")
-            self._dev_raise(err)
-    def chdir(self, path: str | bytes | bytearray, verbose: bool = False):
+            self._dev_raise("getcwd", err)
+    def chdir(self, path: str | bytes | bytearray, *, verbose: bool = False):
         if isinstance(path, str): 
             if verbose: print("[0/5] Convert path str to bytes...")
             path = path.encode(encoding)
-        if verbose: print("[1/5] Send command SWD...")
+        if verbose: print("[1/4] Send command SWD...")
         self.ser.write(SWD)
-        if verbose: print("[2/5] Wait answer...")
-        self._com_wait_ans()
-        if verbose: print("[3/5] Send path string...")
+        if verbose: print("[2/4] Send path string...")
         self._com_write_string(path)
-        if verbose: print("[4/5] Wait answer...")
+        if verbose: print("[3/4] Wait answer...")
         ret = self.ser.read(1)
         if ret == SUC:
-            if verbose: print("[5/5] Done.")
+            if verbose: print("[4/4] Done.")
         else:
-            if verbose: print("[5/6] Failed, Read error string...")
+            if verbose: print("[4/5] Failed, Read error string...")
             err = self._com_read_string()
-            if verbose: print("[6/6] Done.")
-            self._dev_raise(err)
-            
-    def close(self):
+            if verbose: print("[5/5] Done.")
+            self._dev_raise("chdir", err)
+    def _reset(self, *, verbose: bool = False):
+        if verbose: print("[1/2] Send command RST...")
+        self.ser.write(RST)
+        if verbose: print("[2/2] Done.")
+    def close(self, *, verbose: bool = False):
+        self._reset(verbose = verbose)
         self.ser.close()
     def __del__(self):
-        self.close()
+        if self.ser.is_open:
+            self.close()
 
         
 if __name__ == '__main__':
