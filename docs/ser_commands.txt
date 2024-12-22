@@ -45,7 +45,7 @@ Set Work Dir:
     ==WAIT (wait("${SUC|ERR}" in com.buffer))
     if($==SUC){
         ; (change success)
-    }elif($==ERR){
+    }else{
         ==READ (STRING from com.buffer) (error_msg)
     }
 Reset micropython device:
@@ -53,6 +53,6 @@ Reset micropython device:
     ==WAIT (wait("${SUC|ERR}" in com.buffer))
     if($==SUC){
         ; (reset success)
-    }elif($==ERR){
+    }else{
         ==READ (STRING from com.buffer) (error_msg)
     }

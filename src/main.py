@@ -4,14 +4,18 @@ import serial
 import struct
 
 micropython_code_file = "src/on_micropython/main.py"
+# Terminal Codes
+TM_CLRLINE = "\033[K"
+TM_MVLSTLINE = "\033[1A" # \033[<N>A
+# Serial Terminal Codes
+TER_INTP = b"\x03" # Terminal_Interrupt
+TER_NEWL = b"\x0d" # Terminal_NewLine
+# Commands
+ANS = b"\xaa" # Answer
+ERR = b"\x55" # Error
+SUC = b"\x99" # Success
 
-TER_INTP = b"\x03" #Terminal_Interrupt
-TER_NEWL = b"\x0d" #Terminal_NewLine
-ANS = b"\xaa"
-ERR = b"\x55"
-SUC = b"\x99"
-
-GWD = b"\x10"
+GWD = b"\x10" # getcwd
 
 class MpyFileOptError(Exception):
     pass
@@ -24,7 +28,10 @@ class MpyFileOpt:
                  timeout: int | None            = None, 
                  write_timeout: int | None      = None,
                  inter_byte_timeout: int | None = None,
+                 *,
+                 verbose: bool = True
                 ):
+        self.verbose = verbose
         self.ser = serial.Serial(com      ,          # port
                                  baudrate ,          # baudrate
                                  8        ,          # bytesize
@@ -38,7 +45,8 @@ class MpyFileOpt:
                                  inter_byte_timeout, # inter_byte_timeout
                                 )
         self._connect()
-        self.getcwd()
+    def _dev_raise(self, errstr: bytes):
+        raise MpyFileOptError("On getcwd(): In Micropython Device: \n    {}".format(errstr.decode("utf-8")))
     def _dev_reset(self):
         self.ser.dtr = False
         time.sleep(0.01)
@@ -64,38 +72,50 @@ class MpyFileOpt:
                 if self.ser.read_all() == ANS:
                     break
     def _connect(self):
-        print("Reset device...")
+        if self.verbose: print("[1/5] Reset device...")
         self._dev_reset()
-        print("Wait device in REPL...")
+        if self.verbose: print("[2/5] Wait device in REPL...")
         self._dev_wait_in_repl()
-        print("Send source code...")
+        if self.verbose: print("[3/5] Send source code...")
         self._dev_send_src()
-        print("Wait answer...")
+        if self.verbose: print("[4/5] Wait device answer...")
         self._com_wait_ans()
-        print("Done.")
+        if self.verbose: print("[5/5] Done.")
 
     def _com_read_int(self):
         ret = self.ser.read(4)
         return struct.unpack("<i", ret)[0]
+    def _com_write_int(self, i: int):
+        self.ser.write(struct.pack("<i", i))
     def _com_read_uint(self):
         ret = self.ser.read(4)
         return struct.unpack("<I", ret)[0]
+    def _com_write_uint(self, i: int):
+        self.ser.write(struct.pack("<I", i))
     def _com_read_string(self):
         len = self._com_read_uint()
         return self.ser.read(len)
+    def _com_write_string(self, str: bytes):
+        self.ser.write(self._com_write_uint(len(str)))
+        self.ser.write(str)
     
-    def getcwd(self, str: bool = True):
+    def getcwd(self, str: bool = True, verbose: bool = False):
+        if verbose: print("[0/2] Send command GWD...")
         self.ser.write(GWD)
+        if verbose: print("[1/2] Wait answer...")
         ret = self.ser.read(1)
         if ret == SUC:
-            self.wd = self._com_read_string()
-            return self.wd if str else self.wd.decode("utf-8")
-        elif ret == ERR:
-            err = self._com_read_string().decode("utf-8")
-            raise MpyFileOptError("On getcwd(): In Micropython Device: \n    {}".format(err))
-
-    def __del__(self):
+            if verbose: print("[2/2] Success.")
+            wd = self._com_read_string()
+            return wd.decode("utf-8") if str else wd
+        else:
+            if verbose: print("[2/2] Failed.")
+            self._dev_raise(self._com_read_string())
+            
+    def close(self):
         self.ser.close()
+    def __del__(self):
+        self.close()
 
         
 if __name__ == '__main__':

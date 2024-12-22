@@ -1,3 +1,5 @@
 import main
-obj = main.MpyFileOpt("COM3")
-print(obj.getcwd(False))
+import time
+obj = main.MpyFileOpt("COM3", verbose=True)
+print("Start to getcwd")
+print(obj.getcwd())

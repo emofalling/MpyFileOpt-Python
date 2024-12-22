@@ -27,10 +27,9 @@ def err(e):
     uw(E);sstr(e.__class__.__name__+": "+str(e))
 uw(b"\xaa")
 while True:
-    if ua():
-        code=ur(1)
-        if code==b"\x10":
-            try:cwd = os.getcwd()
-            except Exception as e:err(e)
-            else:
-                uw(S);sstr(cwd)
+    code=ur(1)
+    if code==b"\x10":
+        try:cwd = os.getcwd()
+        except Exception as e:err(e)
+        else:
+            uw(S);sstr(cwd)
