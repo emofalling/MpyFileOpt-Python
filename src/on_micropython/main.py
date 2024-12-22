@@ -1,4 +1,4 @@
-U8="utf-8"
+en="ascii"
 S=b"\x99"
 E=b"\x55"
 Version=(1,0)
@@ -22,7 +22,7 @@ ua=uart.any
 def sint(i):uw(sp("<i",i))
 def suint(i):uw(sp("<I",i))
 def sstr(s):
-    suint(len(s));uw(s.encode(U8))
+    suint(len(s));uw(s.encode(en))
 def err(e):
     uw(E);sstr(e.__class__.__name__+": "+str(e))
 uw(b"\xaa")

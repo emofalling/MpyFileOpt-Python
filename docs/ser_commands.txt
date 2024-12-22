@@ -34,15 +34,17 @@ Link to micropython device:
     ==WAIT (wait("$ANS" in com.buffer))
 Get Work Dir:
     ==SEND (com.buffer += GWD)
-    ==WAIT (wait("${SUC|ERR}" in com.buffer))
+    ==WAIT (wait("%c" in com.buffer))
     if($==SUC){
         ==READ (STRING from com.buffer) (work_dir)
     }elif($==ERR){
         ==READ (STRING from com.buffer) (error_msg)
     }
 Set Work Dir:
-    ==SEND (com.buffer += SWD + STRING(work_dir))
-    ==WAIT (wait("${SUC|ERR}" in com.buffer))
+    ==SEND (com.buffer += SWD)
+    ==WAIT (wait("$ANS" in com.buffer))
+    ==SEND (com.buffer += STRING(work_dir))
+    ==WAIT (wait("%c" in com.buffer))
     if($==SUC){
         ; (change success)
     }else{
@@ -50,7 +52,7 @@ Set Work Dir:
     }
 Reset micropython device:
     ==SEND (com.buffer += RESET)
-    ==WAIT (wait("${SUC|ERR}" in com.buffer))
+    ==WAIT (wait("%c" in com.buffer))
     if($==SUC){
         ; (reset success)
     }else{
