@@ -12,14 +12,23 @@
         XXH XXH XXH XXH (4 bytes, uint)
     STRING:
         UINT(length) + string
-    LIST[STRING]:
+    LIST[T]<T:typename>:
         UINT(list_length) + [len:list_length]{
-            STRING
+            T
         }
+
+    GSV   00H (get source version)
+    GUN   01H (get os.uname)
 
     GWD   10H (get work dir)
     SWD   11H (set work dir)
     LSDIR 12H (list dir)
+    ILDIR 13H (os.ilistdir)
+
+
+
+    STAT  30H (get dir status)
+    VSTAT 31H (get vfs status)
 
     RESET FFH
 
@@ -32,6 +41,25 @@ Link to micropython device:
     ::Reset micropython device
     ::Send code to micropython device
     ==WAIT (wait("$ANS" in com.buffer))
+
+Get Source Version:
+    ==SEND (com.buffer += GSV)
+    ==WAIT (wait("%c" in com.buffer))
+    if($==SUC){
+        ==READ (INT from com.buffer)*2 (source_version, X.X)
+    }elif($==ERR){
+        ==READ (STRING from com.buffer) (error_msg)
+    }
+Get Uname:
+    ==SEND (com.buffer += GUN)
+    ==WAIT (wait("%c" in com.buffer))
+    if($==SUC){
+        ==READ ([STRING]*5 from com.buffer) (uname_list)
+    }elif($==ERR){
+        ==READ (STRING from com.buffer) (error_msg)
+    }
+
+
 Get Work Dir:
     ==SEND (com.buffer += GWD)
     ==WAIT (wait("%c" in com.buffer))
@@ -42,7 +70,6 @@ Get Work Dir:
     }
 Set Work Dir:
     ==SEND (com.buffer += SWD)
-    ==WAIT (wait("$ANS" in com.buffer))
     ==SEND (com.buffer += STRING(work_dir))
     ==WAIT (wait("%c" in com.buffer))
     if($==SUC){
@@ -50,6 +77,48 @@ Set Work Dir:
     }else{
         ==READ (STRING from com.buffer) (error_msg)
     }
+List Dir:
+    ==SEND (com.buffer += LSDIR)
+    ==SEND (com.buffer += STRING(path))
+    ==WAIT (wait("%c" in com.buffer))
+    if($==SUC){
+        ==READ (LIST[STRING] from com.buffer) (dir_list)
+    }elif($==ERR){
+        ==READ (STRING from com.buffer) (error_msg)
+        return;
+    }
+IListdir:
+    ==SEND (com.buffer += ILDIR)
+    ==SEND (com.buffer += STRING(path))
+    ==WAIT (wait("%c" in com.buffer))
+    if($==SUC){
+        ==READ (LIST[[STRING, UINT, UINT]] from com.buffer) (dir_list)
+    }elif($==ERR){
+        ==READ (STRING from com.buffer) (error_msg)
+        return;
+    }
+
+Get dir stat:
+    ==SEND (com.buffer += STAT)
+    ==SEND (com.buffer += STRING(path))
+    ==WAIT (wait("%c" in com.buffer))
+    if($==SUC){
+        ==READ ([UINT]*10 from com.buffer) (stat)
+    }elif($==ERR){
+        ==READ (STRING from com.buffer) (error_msg)
+        return;
+    }
+Get VFS statvfs:
+    ==SEND (com.buffer += VSTAT)
+    ==SEND (com.buffer += STRING(path))
+    ==WAIT (wait("%c" in com.buffer))
+    if($==SUC){
+        ==READ ([INT]*10 from com.buffer) (stat)
+    }elif($==ERR){
+        ==READ (STRING from com.buffer) (error_msg)
+        return;
+    }
+
 Reset micropython device:
     ==SEND (com.buffer += RESET)
     ==WAIT (wait("%c" in com.buffer))

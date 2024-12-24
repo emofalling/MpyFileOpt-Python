@@ -2,7 +2,7 @@ en="ascii"
 A=b"\xaa"
 S=b"\x99"
 E=b"\x55"
-Version=(1,0)
+ver=(1,0)
 speed=1024
 import machine,os,time,struct
 #from mpython import *
@@ -30,7 +30,18 @@ def err(e):uw(E);sstr(e.__class__.__name__+": "+str(e))
 uw(A)
 while True:
     code=ur(1)
-    if code==b"\x10":
+    if code==b"\x00":
+        try:uw(S);suint(ver[0]);suint(ver[1])
+        except Exception as e:err(e)
+    elif code==b"\x01":
+        try:c=os.uname()
+        except Exception as e:err(e)
+        else:
+            uw(S)
+            for i in c:sstr(i)
+    
+
+    elif code==b"\x10":
         try:cwd = os.getcwd()
         except Exception as e:err(e)
         else:uw(S);sstr(cwd)
@@ -38,6 +49,31 @@ while True:
         try:os.chdir(rstr())
         except Exception as e:err(e)
         else:uw(S)
+    elif code==b"\x12":
+        try:l=os.listdir(rstr())
+        except Exception as e:err(e)
+        else:
+            uw(S);suint(len(l))
+            for i in l:sstr(i)
+    elif code==b"\x13":
+        try:r=list(os.ilistdir(rstr()))
+        except Exception as e:err(e)
+        else:
+            uw(S);suint(len(r))
+            for a in r:sstr(a[0]);suint(a[1]);suint(a[2])
+    
+    elif code==b"\x30":
+        try:r=os.stat(rstr())
+        except Exception as e:err(e)
+        else:
+            uw(S)
+            for i in r:suint(i)
+    elif code==b"\x31":
+        try:r=os.statvfs(rstr())
+        except Exception as e:err(e)
+        else:
+            uw(S)
+            for i in r:sint(i)
     
     elif code==b"\xff":
         try:machine.reset()
