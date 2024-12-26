@@ -25,6 +25,13 @@
     LSDIR 12H (list dir)
     ILDIR 13H (os.ilistdir)
 
+    FW    20H (File Write/Upload)
+    FR    21H (File Read /Download)
+    FRM   22H (Remove File)
+    DRM   23H (Remove Dir ==RMDIR)
+    MKDIR 24H (Make Dir)
+    RN    25H (Path Rename)
+
 
 
     STAT  30H (get dir status)
