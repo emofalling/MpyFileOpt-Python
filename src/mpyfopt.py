@@ -256,11 +256,12 @@ class MpyFileOpt:
             err = self._com_read_string()
             if verbose: print("[4/4] Done.")
             self._dev_raise("get_source_version", err)
-    def uname(self, *, verbose: bool = False) -> tuple[str, str, str, str, str]:
+    def uname(self, isstr: bool = True, *, verbose: bool = False) -> tuple[str, str, str, str, str] | tuple[bytes, bytes, bytes, bytes, bytes]:
         """Read sys.uname from the device
 
            Args
            ---
+           `isstr`: if True, return str, else return bytes
            `verbose`: if True, print debug info
 
            Returns
@@ -280,11 +281,11 @@ class MpyFileOpt:
         if ret == SUC:
             if verbose: print("[3/4] Success, Read uname...")
             result = __types__.uname_result(
-                self._com_read_string().decode(encoding),
-                self._com_read_string().decode(encoding),
-                self._com_read_string().decode(encoding),
-                self._com_read_string().decode(encoding),
-                self._com_read_string().decode(encoding)
+                self._com_read_string().decode(encoding) if isstr else self._com_read_string(),
+                self._com_read_string().decode(encoding) if isstr else self._com_read_string(),
+                self._com_read_string().decode(encoding) if isstr else self._com_read_string(),
+                self._com_read_string().decode(encoding) if isstr else self._com_read_string(),
+                self._com_read_string().decode(encoding) if isstr else self._com_read_string()
             )
             if verbose: print("[4/4] Done.")
             return result
@@ -997,8 +998,8 @@ if __name__ == '__main__':
     main_parser.add_argument("-P" , "--parity"            ,             choices=serial.Serial.PARITIES, default="N",    help="serial parity. default N")
     main_parser.add_argument("-S" , "--stopbits"          , type=float, choices=serial.Serial.STOPBITS, default=1,      help="serial stopbits. default 1")
     main_parser.add_argument("-To", "--timeout"           , type=float,                                 default=1,      help="serial timeout. if 0, no timeout. default 0")
-    main_parser.add_argument("-Tw", "--write_timeout"     , type=float,                                 default=1,      help="serial write timeout. if 0, no timeout. default 0")
-    main_parser.add_argument("-Tb", "--inter_byte_timeout", type=float,                                 default=0.1,    help="serial inter-byte timeout. default 0.1")
+    main_parser.add_argument("-Tw", "--write-timeout"     , type=float,                                 default=1,      help="serial write timeout. if 0, no timeout. default 0")
+    main_parser.add_argument("-Tb", "--inter-byte-timeout", type=float,                                 default=0.1,    help="serial inter-byte timeout. default 0.1")
     
     main_parser.add_argument("-v" , "--verbose"           , action="store_true", help="output debug info")
     main_parser.add_argument("-c" , "--colorful"          , action="store_true", help="make output colorful. if terminal not support ANSI color escape sequence, not recommended select this option")
@@ -1010,9 +1011,26 @@ if __name__ == '__main__':
     # shell-exit
     subcmd_shell_exit_parser = argparse.ArgumentParser("exit", description = "Exit shell.", epilog = "See README.md for more information.", add_help = True)
     # ver
-    subcmd_ver_parser = argparse.ArgumentParser("ver", add_help = True)
+    subcmd_ver_parser = argparse.ArgumentParser("ver", description="Print version of this project", epilog="See README.md for more information.", add_help = True)
     subcmd_ver_parser.add_argument("-c", "--csv", action="store_true", help="output csv format")
     subcmd_ver_parser.add_argument("-v", "--verbose", action="store_true", help="output debug info")
+    # uname
+    subcmd_uname_parser = argparse.ArgumentParser("uname", description="Print system information. if no option(except --csv(-c) and --verbose), output kernel name.", epilog="See README.md for more information.", add_help = True)
+    subcmd_uname_parser.add_argument("-a", "--all", action="store_true", help="output all information")
+    subcmd_uname_parser.add_argument("-s", "--kernel-name", action="store_true", help="output the kernel name. this is the normal option")
+    subcmd_uname_parser.add_argument("-n", "--nodename", action="store_true", help="output the network node hostname")
+    subcmd_uname_parser.add_argument("-r", "--kernel-release", action="store_true", help="output the kernel release")
+    subcmd_uname_parser.add_argument("-v", "--kernel-version", action="store_true", help="output the kernel version")
+    subcmd_uname_parser.add_argument("-m", "--machine", action="store_true", help="output the machine hardware name")
+    subcmd_uname_parser.add_argument("-c", "--csv", action="store_true", help="output csv format")
+    subcmd_uname_parser.add_argument(      "--verbose", action="store_true", help="output debug info")
+    # pwd
+    subcmd_pwd_parser = argparse.ArgumentParser("pwd", description="Print current working directory", epilog="See README.md for more information.", add_help = True)
+    subcmd_pwd_parser.add_argument("-v", "--verbose", action="store_true", help="output debug info")
+    # cd
+    subcmd_cd_parser = argparse.ArgumentParser("cd", description="Change current working directory", epilog="See README.md for more information.", add_help = True)
+    subcmd_cd_parser.add_argument("dir", nargs="?", default="/", help="dir to change to. if not specified, change to /")
+    subcmd_cd_parser.add_argument("-v", "--verbose", action="store_true", help="output debug info")
 
 
     maincmd_argv = []
@@ -1049,6 +1067,7 @@ if __name__ == '__main__':
         exit(1)
     shell_workdir = ""
     def match_subcmd(subcmd_argv: list[str]):
+        global shell_workdir
         subcmd = subcmd_argv[0]
         match subcmd:
             case "shell":
@@ -1057,7 +1076,9 @@ if __name__ == '__main__':
                 try:
                     shell()
                 except BaseException:
-                    logerr(traceback.format_exc(), "")
+                    # logerr(traceback.format_exc(), "")
+                    print("") # newline
+                    pass
             case "ver":
                 s_args = subcmd_parse_args(subcmd_ver_parser, subcmd_argv)
                 if not s_args: return
@@ -1065,27 +1086,80 @@ if __name__ == '__main__':
                     srcver = opt.get_source_version(verbose = s_args.verbose)
                 except BaseException:
                     logerr(traceback.format_exc(), "")
+                    return
                 if s_args.csv:
-                    print(f"{__version__}, {srcver[0]}.{srcver[1]}")
+                    print(f"{__version__},{srcver[0]}.{srcver[1]}")
                 else:
                     print(f"mpyfopt version: {__version__}")
                     print(f"source version: {srcver[0]}.{srcver[1]}")
+            case "uname":
+                s_args = subcmd_parse_args(subcmd_uname_parser, subcmd_argv)
+                if not s_args: return
+                try:
+                    uname = opt.uname(verbose = s_args.verbose)
+                except BaseException:
+                    logerr(traceback.format_exc(), "")
+                    return
+                if s_args.csv:
+                    uname_infos = []
+                    if s_args.kernel_name or s_args.all or not any([s_args.kernel_name, s_args.nodename, s_args.kernel_release, s_args.kernel_version, s_args.machine]):
+                        uname_infos.append(uname[0])
+                    if s_args.nodename or s_args.all:
+                        uname_infos.append(uname[1])
+                    if s_args.kernel_release or s_args.all:
+                        uname_infos.append(uname[2])
+                    if s_args.kernel_version or s_args.all:
+                        uname_infos.append(uname[3])
+                    if s_args.machine or s_args.all:
+                        uname_infos.append(uname[4])
+                    print(",".join(uname_infos))
+                else:
+                    if s_args.kernel_name or s_args.all or not any([s_args.kernel_name, s_args.nodename, s_args.kernel_release, s_args.kernel_version, s_args.machine]):
+                        print("Kernel name:", uname[0])
+                    if s_args.nodename or s_args.all:
+                        print("Node name:", uname[1])
+                    if s_args.kernel_release or s_args.all:
+                        print("Kernel release:", uname[2])
+                    if s_args.kernel_version or s_args.all:
+                        print("Kernel version:", uname[3])
+                    if s_args.machine or s_args.all:
+                        print("Machine:", uname[4])
+            case "pwd":
+                s_args = subcmd_parse_args(subcmd_pwd_parser, subcmd_argv)
+                if not s_args: return
+                try:
+                    path = opt.getcwd()
+                except BaseException:
+                    logerr(traceback.format_exc(), "")
+                    return
+                print(path)
+                shell_workdir = path
+            case "cd":
+                s_args = subcmd_parse_args(subcmd_cd_parser, subcmd_argv)
+                if not s_args: return
+                try:
+                    opt.chdir(s_args.dir)
+                except BaseException:
+                    logerr(traceback.format_exc(), "")
+                    return
+                shell_workdir = opt.getcwd()
+                
+
+                
             case _:
                 logerr(f"unknown subcommand: {subcmd}", "")
     def shell():
+        global shell_workdir
         shell_workdir = opt.getcwd()
         while True:
             line = input(f"{shell_workdir}> ")
             args = shlex.split(line)
-            print(args)
+            #print(args)
             if len(args) == 0:
                 continue
             if args[0] == "exit":
                 if len(args) > 1:
-                    try:
-                        subcmd_shell_exit_parser.parse_args(args)
-                    except SystemExit:
-                        pass
+                    subcmd_parse_args(subcmd_shell_exit_parser, args)
                     continue
                 else:
                     break
