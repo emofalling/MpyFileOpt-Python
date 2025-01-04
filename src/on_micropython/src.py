@@ -1,11 +1,16 @@
 en="ascii"
 A=b"\xaa"
-S=b"\x99"
-E=b"\x55"
+S=b"\x00"
+E=b"\xff"
+T=b"\x00"
+F=b"\x01"
+N=b"\x02"
+BW=b"\x00"
+BE=b"\xff"
 ver=(1,0)
 speed=1024
-import machine,os,time,struct
-#from mpython import *
+import machine,os,struct,gc
+from mpython import *
 sp=struct.pack
 sup=struct.unpack
 from flashbdev import bdev
@@ -19,7 +24,9 @@ from machine import UART
 uart=UART(1,baudrate=115200,tx=1,rx=3,timeout=10000)
 uw=uart.write
 ur=uart.read
+uri=uart.readinto
 ua=uart.any
+def rbool():return ur(1)==T
 def rint():return sup("<i", ur(4))[0]
 def sint(i):uw(sp("<i",i))
 def ruint():return sup("<I", ur(4))[0]
@@ -40,7 +47,6 @@ while True:
             uw(S)
             for i in c:sstr(i)
     
-
     elif code==b"\x10":
         try:cwd = os.getcwd()
         except Exception as e:err(e)
@@ -62,6 +68,60 @@ while True:
             uw(S);suint(len(r))
             for a in r:sstr(a[0]);suint(a[1]);suint(a[2])
     
+    elif code==b"\x20":
+        p=rstr();fs=ruint();bs=ruint()
+        try:
+            bf=bytearray(bs)
+            with open(p,"wb") as f:
+                uw(S)
+                while fs>0:
+                    ib=ur(1)
+                    if ib==BW:
+                        uri(bf)
+                    else:
+                        del bf;bs=ruint();bf=ur(bs)
+                    try:f.write(bf)
+                    except Exception as e:err(e);break
+                    else:uw(S)
+                    fs-=bs
+        except Exception as e:err(e)
+    elif code==b"\x21":
+        p=rstr();bs=ruint()
+        try:
+            fs=os.stat(p)[6];bf=bytearray(bs)
+            with open(p,"rb") as f:
+                uw(S);suint(fs)
+                while fs>0:
+                    st=ur(1)
+                    if st==BW:
+                        try:f.readinto(bf)
+                        except Exception as e:err(e);break
+                        else:uw(S)
+                    else:
+                        del bf;bs=ruint()
+                        try:bf=f.read(bs)
+                        except Exception as e:err(e);break
+                        else:uw(S)
+                    uw(bf)
+                    fs-=bs
+        except Exception as e:err(e)
+    elif code==b"\x22":
+        try:os.remove(rstr())
+        except Exception as e:err(e)
+        else:uw(S)
+    elif code==b"\x23":
+        try:os.rmdir(rstr())
+        except Exception as e:err(e)
+        else:uw(S)
+    elif code==b"\x24":
+        try:os.mkdir(rstr())
+        except Exception as e:err(e)
+        else:uw(S)
+    elif code==b"\x25":
+        try:os.rename(rstr(),rstr())
+        except Exception as e:err(e)
+        else:uw(S)
+
     elif code==b"\x30":
         try:r=os.stat(rstr())
         except Exception as e:err(e)
@@ -74,6 +134,15 @@ while True:
         else:
             uw(S)
             for i in r:sint(i)
+    
+    elif code==b"\x40":
+        cl=rbool()
+        try:
+            if cl:gc.collect()
+            f=gc.mem_free()
+            a=gc.mem_alloc()
+        except Exception as e:err(e)
+        else:uw(S);sint(a);sint(f)
     
     elif code==b"\xff":
         try:machine.reset()

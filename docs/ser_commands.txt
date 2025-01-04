@@ -1,10 +1,10 @@
 #CODES:
     ANS aaH
-    ERR 55H
-    SUC 99H
+    ERR (likely)ffH
+    SUC 00H
     BOOL&NONE:
-        TRUE  01H
-        FALSE 00H
+        TRUE  0H
+        FALSE 01H
         NONE  02H
     INT:
         XXH XXH XXH XXH (4 bytes, int)
@@ -27,17 +27,19 @@
 
     FW    20H (File Write/Upload)
     FR    21H (File Read /Download)
+       BW 00H (data isn't end)
+       BE (likely)ffH (data is end)
     FRM   22H (Remove File)
     DRM   23H (Remove Dir ==RMDIR)
     MKDIR 24H (Make Dir)
     RN    25H (Path Rename)
 
-
-
     STAT  30H (get dir status)
     VSTAT 31H (get vfs status)
 
-    RESET FFH
+    GCI  40H (GC info)
+
+    RESET ffH
 
 Reset micropython device:
     ==RESET [!:com.state."DSR/DTR" == false]{com.DTR = false; sleep(>0); com.DTR = true}
@@ -105,6 +107,103 @@ IListdir:
         return;
     }
 
+File Write:
+    ==SEND (com.buffer += FW)
+    ==SEND (com.buffer += STRING(path))
+    ==SEND (com.buffer += UINT(file_size))
+    ==SEND (com.buffer += UINT(block_size))
+    ==WAIT (wait("%c" in com.buffer))
+    if($==SUC){
+        ; (open success)
+    }else{
+        ==READ (STRING from com.buffer) (error_msg)
+        return;
+    }
+    while(file_size > 0){
+        data = file.read(block_size)
+        if(len(data) == block_size){
+            ==SEND (com.buffer += BW)
+        }else{
+            ==SEND (com.buffer += BE)
+            ==SEND (com.buffer += UINT(len(data)))
+        }
+        ==SEND (com.buffer += data)
+        ==WAIT (wait("%c" in com.buffer))
+        if($==SUC){
+            ; (write success)
+        }else{
+            ==READ (STRING from com.buffer) (error_msg)
+            return;
+        }
+        file_size -= len(data)
+    }
+File Read:
+    ==SEND (com.buffer += FR)
+    ==SEND (com.buffer += STRING(path))
+    ==SEND (com.buffer += UINT(block_size))
+    ==WAIT (wait("%c" in com.buffer))
+    if($==SUC){
+        ; (open success)
+    }else{
+        ==READ (STRING from com.buffer) (error_msg)
+        return;
+    }
+    ==READ (UINT from com.buffer) ($file_size)
+    while(file_size > 0){
+        if(file_size >= block_size){
+            ==SEND (com.buffer += BW)
+        }else{
+            ==SEND (com.buffer += BE)
+            ==SEND (com.buffer += UINT(file_size))
+        }
+        ==WAIT (wait("%c" in com.buffer))
+        if($==SUC){
+            ; (read success)
+        }else{
+            ==READ (STRING from com.buffer) (error_msg)
+            return;
+        }
+        ==READ (data from com.buffer) (data)
+        file.write(data)
+    }
+Remove File:
+    ==SEND (com.buffer += FRM)
+    ==SEND (com.buffer += STRING(path))
+    ==WAIT (wait("%c" in com.buffer))
+    if($==SUC){
+        ; (remove success)
+    }else{
+        ==READ (STRING from com.buffer) (error_msg)
+    }
+Remove Dir:
+    ==SEND (com.buffer += DRM)
+    ==SEND (com.buffer += STRING(path))
+    ==WAIT (wait("%c" in com.buffer))
+    if($==SUC){
+        ; (remove success)
+    }else{
+        ==READ (STRING from com.buffer) (error_msg)
+    }
+Make Dir:
+    ==SEND (com.buffer += MKDIR)
+    ==SEND (com.buffer += STRING(path))
+    ==WAIT (wait("%c" in com.buffer))
+    if($==SUC){
+        ; (make success)
+    }else{
+        ==READ (STRING from com.buffer) (error_msg)
+    }
+Rename:
+    ==SEND (com.buffer += RN)
+    ==SEND (com.buffer += STRING(old_path))
+    ==SEND (com.buffer += STRING(new_path))
+    ==WAIT (wait("%c" in com.buffer))
+    if($==SUC){
+        ; (rename success)
+    }else{
+        ==READ (STRING from com.buffer) (error_msg)
+    }
+
 Get dir stat:
     ==SEND (com.buffer += STAT)
     ==SEND (com.buffer += STRING(path))
@@ -121,6 +220,16 @@ Get VFS statvfs:
     ==WAIT (wait("%c" in com.buffer))
     if($==SUC){
         ==READ ([INT]*10 from com.buffer) (stat)
+    }elif($==ERR){
+        ==READ (STRING from com.buffer) (error_msg)
+        return;
+    }
+Get GC info:
+    ==SEND (com.buffer += GCI)
+    ==SEND (com.buffer += BOOL(collect))
+    ==WAIT (wait("%c" in com.buffer))
+    if($==SUC){
+        ==READ ([INT]*2 from com.buffer) (gc_info(alloc, free, collected))
     }elif($==ERR){
         ==READ (STRING from com.buffer) (error_msg)
         return;
