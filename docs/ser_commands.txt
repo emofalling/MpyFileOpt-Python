@@ -19,6 +19,8 @@
 
     GSV   00H (get source version)
     GUN   01H (get os.uname)
+    GID   02H (get uid)
+    GFQ   03H (get cpu freq)
 
     GWD   10H (get work dir)
     SWD   11H (set work dir)

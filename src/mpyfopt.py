@@ -32,8 +32,10 @@ TRUE = b"\x00"
 FALSE = b"\x01"
 NONE = b"\x02"
 
-GSV = b"\x00" # get_source_version
-GUN = b"\x01" # get_uname
+GSV = b"\x00" # get source version
+GUN = b"\x01" # get uname
+GID = b"\x02" # get uid
+GFQ = b"\x03" # get cpu freq
 
 GWD = b"\x10" # getcwd
 SWD = b"\x11" # setcwd
@@ -296,6 +298,75 @@ class MpyFileOpt:
             err = self._com_read_string()
             if verbose: print("[4/4] Done.")
             self._dev_raise("uname", err)
+    def get_uid(self, *, verbose: bool = False) -> bytes:
+        """Read unique(machine.unique_id) id from the device
+
+           Args
+           ---
+           `verbose`: if True, print debug info
+
+           Returns
+           ---
+           unique id. About content of unique_id, see `machine.unique_id`
+
+           Raises
+           ---
+           `TimeoutError`: if read or write time out
+           `MpyFileOptError`: if device return error string
+           Other: not to elaborate
+        """
+        if verbose: print("[1/4] Send command GID...")
+        self._com_write(GID)
+        if verbose: print("[2/4] Wait answer...")
+        ret = self.ser.read(1)
+        if ret == SUC:
+            if verbose: print("[3/4] Success, Read unique id...")
+            uid = self._com_read_string()
+            if verbose: print("[4/4] Done.")
+            return uid
+        elif ret == b"":
+            raise TimeoutError("Read time out.")
+        else:
+            if verbose: print("[3/4] Failed, Read error string...")
+            err = self._com_read_string()
+            if verbose: print("[4/4] Done.")
+            self._dev_raise("unique_id", err)
+    def get_freq(self, *, verbose: bool = False) -> int:
+        """Read CPU frequency from the device
+
+           Args
+           ---
+           `verbose`: if True, print debug info
+
+           Returns
+           ---
+           CPU frequency
+
+           Raises
+           ---
+           `TimeoutError`: if read or write time out
+           `MpyFileOptError`: if device return error string
+           Other: not to elaborate
+        """
+        if verbose: print("[1/4] Send command GFQ...")
+        self._com_write(GFQ)
+        if verbose: print("[2/4] Wait answer...")
+        ret = self.ser.read(1)
+        if ret == SUC:
+            if verbose: print("[3/4] Success, Read frequency...")
+            freq = self._com_read_uint()
+            if verbose: print("[4/4] Done.")
+            return freq
+        elif ret == b"":
+            raise TimeoutError("Read time out.")
+        else:
+            if verbose: print("[3/4] Failed, Read error string...")
+            err = self._com_read_string()
+            if verbose: print("[4/4] Done.")
+            self._dev_raise("get_freq", err)
+
+
+
     def getcwd(self, isstr: bool = True, *, verbose: bool = False) -> str | bytes:
         """Read current workdir(os.getcwd) from the device  
 
@@ -960,6 +1031,9 @@ if __name__ == '__main__':
     # command line
     import argparse
     import shlex
+    # hex & calculation
+    import binascii
+    import math
     # terminal codes
     ANSI_RESET_ALL          = "\x1b[0m"
     ANSI_COLOR_BLACK        = "\x1b[30m"
@@ -981,11 +1055,25 @@ if __name__ == '__main__':
 
 
 
-    all_commands = ["var", "shell", "ver", "uname", "pwd", "cd", "ls", "ils", "cat", "push", "pull", "rm", "rmdir", "mkdir", "mv", "gc", "stat", "statvfs"]
+    BASE_COMPUTER = 1024
+    BASE_GENERAL  = 1000
+    SUFFIX_LIST_COMPUTER = ["", "Ki", "Mi", "Gi", "Ti", "Pi", "Ei", "Zi", "Yi", "Bi"]
+    SUFFIX_LIST_GENERAL =  ["", "K" , "M" , "G" , "T" , "P" , "E" , "Z" , "Y" , "B" ]
+    def auto_suffix(num: int, base: int = BASE_GENERAL, suffix_list: list[str] = SUFFIX_LIST_GENERAL) -> tuple[int, str]:
+        lf = math.floor(math.log(num, base))
+        try:
+            suffix = suffix_list[lf]
+        except IndexError:
+            return 1, suffix_list[0]
+        return base ** lf, suffix
+
+
+
+    all_commands = ["var", "shell", "ver", "uname", "uid", "freq", "pwd", "cd", "ls", "ils", "cat", "push", "pull", "rm", "rmdir", "mkdir", "mv", "gc", "stat", "statvfs"]
     argv = sys.argv[1:]
     colorful = False
     def logerr(msg, prefix = "Error: "):
-        print((ANSI_COLOR_RED if colorful else "") + prefix + msg + (ANSI_COLOR_WHITE if colorful else ""))
+        print((ANSI_COLOR_RED if colorful else "") + prefix + msg + (ANSI_RESET_ALL if colorful else ""))
     def subcmd_parse_args(parser: argparse.ArgumentParser, args: list[str]):
         try:
             return parser.parse_args(args[1:])
@@ -1002,7 +1090,7 @@ if __name__ == '__main__':
     main_parser.add_argument("-Tb", "--inter-byte-timeout", type=float,                                 default=0.1,    help="serial inter-byte timeout. default 0.1")
     
     main_parser.add_argument("-v" , "--verbose"           , action="store_true", help="output debug info")
-    main_parser.add_argument("-c" , "--colorful"          , action="store_true", help="make output colorful. if terminal not support ANSI color escape sequence, not recommended select this option")
+    main_parser.add_argument("-nc" , "--no-colorful"          , action="store_false", help="make output not colorful. if terminal not support ANSI color escape sequence, recommended select this option")
 
     # main_parser.add_argument("subcommands", nargs=0, help="subcommand and its arguments")
 
@@ -1015,7 +1103,7 @@ if __name__ == '__main__':
     subcmd_ver_parser.add_argument("-c", "--csv", action="store_true", help="output csv format")
     subcmd_ver_parser.add_argument("-v", "--verbose", action="store_true", help="output debug info")
     # uname
-    subcmd_uname_parser = argparse.ArgumentParser("uname", description="Print system information. if no option(except --csv(-c) and --verbose), output kernel name.", epilog="See README.md for more information.", add_help = True)
+    subcmd_uname_parser = argparse.ArgumentParser("uname", description="Print device's system information. if no option(except --csv(-c) and --verbose), output kernel name.", epilog="See README.md for more information.", add_help = True)
     subcmd_uname_parser.add_argument("-a", "--all", action="store_true", help="output all information")
     subcmd_uname_parser.add_argument("-s", "--kernel-name", action="store_true", help="output the kernel name. this is the normal option")
     subcmd_uname_parser.add_argument("-n", "--nodename", action="store_true", help="output the network node hostname")
@@ -1024,11 +1112,18 @@ if __name__ == '__main__':
     subcmd_uname_parser.add_argument("-m", "--machine", action="store_true", help="output the machine hardware name")
     subcmd_uname_parser.add_argument("-c", "--csv", action="store_true", help="output csv format")
     subcmd_uname_parser.add_argument(      "--verbose", action="store_true", help="output debug info")
+    # uid
+    subcmd_uid_parser = argparse.ArgumentParser("uid", description="Print device's unique id", epilog="See README.md for more information.", add_help = True)
+    subcmd_uid_parser.add_argument("-v", "--verbose", action="store_true", help="output debug info")
+    # freq
+    subcmd_freq_parser = argparse.ArgumentParser("freq", description="Print device's cpu frequency", epilog="See README.md for more information.", add_help = True)
+    subcmd_freq_parser.add_argument("-r", "--raw", action="store_true", help="output raw cpu frequency. it has no suffix, unit Hz.")
+    subcmd_freq_parser.add_argument("-v", "--verbose", action="store_true", help="output debug info")
     # pwd
-    subcmd_pwd_parser = argparse.ArgumentParser("pwd", description="Print current working directory", epilog="See README.md for more information.", add_help = True)
+    subcmd_pwd_parser = argparse.ArgumentParser("pwd", description="Print device's current working directory", epilog="See README.md for more information.", add_help = True)
     subcmd_pwd_parser.add_argument("-v", "--verbose", action="store_true", help="output debug info")
     # cd
-    subcmd_cd_parser = argparse.ArgumentParser("cd", description="Change current working directory", epilog="See README.md for more information.", add_help = True)
+    subcmd_cd_parser = argparse.ArgumentParser("cd", description="Change device's current working directory", epilog="See README.md for more information.", add_help = True)
     subcmd_cd_parser.add_argument("dir", nargs="?", default="/", help="dir to change to. if not specified, change to /")
     subcmd_cd_parser.add_argument("-v", "--verbose", action="store_true", help="output debug info")
 
@@ -1049,7 +1144,7 @@ if __name__ == '__main__':
     print(maincmd_argv)
     print(subcmd_argv_list)
     args = main_parser.parse_args(maincmd_argv)
-    colorful = args.colorful
+    colorful = args.no_colorful
     try:
         opt = MpyFileOpt(
             args.port,
@@ -1075,9 +1170,10 @@ if __name__ == '__main__':
                 if not s_args: return
                 try:
                     shell()
+                except KeyboardInterrupt:
+                    logerr("KeyboardInterrupt", "")
                 except BaseException:
-                    # logerr(traceback.format_exc(), "")
-                    print("") # newline
+                    logerr(traceback.format_exc(), "")
                     pass
             case "ver":
                 s_args = subcmd_parse_args(subcmd_ver_parser, subcmd_argv)
@@ -1124,6 +1220,29 @@ if __name__ == '__main__':
                         print("Kernel version:", uname[3])
                     if s_args.machine or s_args.all:
                         print("Machine:", uname[4])
+            case "uid":
+                s_args = subcmd_parse_args(subcmd_uid_parser, subcmd_argv)
+                if not s_args: return
+                try:
+                    uid = opt.get_uid(verbose = s_args.verbose)
+                except BaseException:
+                    logerr(traceback.format_exc(), "")
+                    return
+                uid_s = binascii.hexlify(uid).decode("ascii")
+                print(uid_s)
+            case "freq":
+                s_args = subcmd_parse_args(subcmd_freq_parser, subcmd_argv)
+                if not s_args: return
+                try:
+                    freq = opt.get_freq(verbose = s_args.verbose)
+                except BaseException:
+                    logerr(traceback.format_exc(), "")
+                    return
+                if s_args.raw:
+                    print(freq)
+                else:
+                    div, sif = auto_suffix(freq)
+                    print(f"{freq / div} {sif}Hz")
             case "pwd":
                 s_args = subcmd_parse_args(subcmd_pwd_parser, subcmd_argv)
                 if not s_args: return
@@ -1143,6 +1262,7 @@ if __name__ == '__main__':
                     logerr(traceback.format_exc(), "")
                     return
                 shell_workdir = opt.getcwd()
+            case "ls":...
                  
 
                 
@@ -1152,7 +1272,8 @@ if __name__ == '__main__':
         global shell_workdir
         shell_workdir = opt.getcwd()
         while True:
-            line = input(f"{shell_workdir}> ")
+            line = input(f"{ANSI_COLOR_GREEN}{shell_workdir}{ANSI_RESET_ALL} > ")
+            line = line.replace("$PWD", shell_workdir)
             args = shlex.split(line)
             #print(args)
             if len(args) == 0:

@@ -32,12 +32,14 @@ def sint(i):uw(sp("<i",i))
 def ruint():return sup("<I", ur(4))[0]
 def suint(i):uw(sp("<I",i))
 def rstr(s=True):o=ur(ruint());return o.decode(en) if s else o
-def sstr(s):suint(len(s));uw(s.encode(en))
+def sstr(s,iss=True):suint(len(s));uw(s.encode(en) if iss else s)
 def err(e):uw(E);sstr(e.__class__.__name__+": "+str(e))
 uw(A)
 while True:
     code=ur(1)
-    if code==b"\x00":
+    if code is None:pass
+
+    elif code==b"\x00":
         try:uw(S);suint(ver[0]);suint(ver[1])
         except Exception as e:err(e)
     elif code==b"\x01":
@@ -46,6 +48,15 @@ while True:
         else:
             uw(S)
             for i in c:sstr(i)
+    elif code==b"\x02":
+        try:uid=machine.unique_id()
+        except Exception as e:err(e)
+        else:
+            uw(S);sstr(uid,False)
+    elif code==b"\x03":
+        try:f=machine.freq()
+        except Exception as e:err(e)
+        else:uw(S);suint(f)
     
     elif code==b"\x10":
         try:cwd = os.getcwd()
@@ -139,8 +150,7 @@ while True:
         cl=rbool()
         try:
             if cl:gc.collect()
-            f=gc.mem_free()
-            a=gc.mem_alloc()
+            f=gc.mem_free();a=gc.mem_alloc()
         except Exception as e:err(e)
         else:uw(S);sint(a);sint(f)
     
