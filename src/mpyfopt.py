@@ -232,7 +232,7 @@ class MpyFileOpt:
 
            Returns
            ---
-           a tuple, info is `(1st, 2nd)`
+           a tuple, info is `(major, minir)`
 
            Raises
            ---
