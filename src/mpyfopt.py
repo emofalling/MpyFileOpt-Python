@@ -366,12 +366,12 @@ class MpyFileOpt:
             err = self._com_read_string()
             if verbose: print("[5/5] Done.")
             self._dev_raise("chdir", err)
-    def listdir(self, path: str | bytes | bytearray, isstr: bool = True, *, verbose: bool = False) -> list[str | bytes]:
+    def listdir(self, path: str | bytes | bytearray = b".", isstr: bool = True, *, verbose: bool = False) -> list[str | bytes]:
         """Read path list(os.listdir) from the device
 
            Args
            ---
-           `path`: path to read
+           `path`: path to read. default is current directory(.)
            `isstr`: if True, path in list is str, else is bytes
            `verbose`: if True, print debug info
 
@@ -410,12 +410,12 @@ class MpyFileOpt:
             err = self._com_read_string()
             if verbose: print("[5/5] Done.")
             self._dev_raise("listdir", err)
-    def ilistdir(self, path: str | bytes | bytearray, isstr: bool = True, *, verbose: bool = False) -> list[tuple[str | bytes, int, int]]:
+    def ilistdir(self, path: str | bytes | bytearray = b".", isstr: bool = True, *, verbose: bool = False) -> list[tuple[str | bytes, int, int]]:
         """Read path info list(os.ilistdir) from the device
 
            Args
            ---
-           `path`: path to read
+           `path`: path to read. default is current directory(.)
            `isstr`: if True, path in list is str, else is bytes
            `verbose`: if True, print debug info
 
@@ -1056,9 +1056,9 @@ if __name__ == '__main__':
             baudrate = args.baudrate,
             parity = args.parity,
             stopbits = args.stopbits,
-            timeout = args.timeout,
-            write_timeout = args.write_timeout,
-            inter_byte_timeout = args.inter_byte_timeout,
+            timeout = None if args.timeout == 0 else args.timeout,
+            write_timeout = None if args.write_timeout == 0 else args.write_timeout,
+            inter_byte_timeout = None if args.inter_byte_timeout == 0 else args.inter_byte_timeout,
 
             verbose = args.verbose,
         )
