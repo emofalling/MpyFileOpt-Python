@@ -1272,7 +1272,7 @@ if __name__ == '__main__':
         global shell_workdir
         shell_workdir = opt.getcwd()
         while True:
-            line = input(f"{ANSI_COLOR_GREEN}{shell_workdir}{ANSI_RESET_ALL} > ")
+            line = input(f"{ANSI_COLOR_GREEN if colorful else ""}{shell_workdir}{ANSI_RESET_ALL if colorful else ""} > ")
             line = line.replace("$PWD", shell_workdir)
             args = shlex.split(line)
             #print(args)
