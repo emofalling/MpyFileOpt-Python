@@ -1026,6 +1026,8 @@ class MpyFileOpt:
 
 
 if __name__ == '__main__':
+    # stat
+    import stat
     # errors
     import traceback
     # command line
@@ -1034,6 +1036,8 @@ if __name__ == '__main__':
     # hex & calculation
     import binascii
     import math
+    # config file
+    import json
     # terminal codes
     ANSI_RESET_ALL          = "\x1b[0m"
     ANSI_COLOR_BLACK        = "\x1b[30m"
@@ -1052,8 +1056,12 @@ if __name__ == '__main__':
     ANSI_COLOR_LIGHT_PURPLE = "\x1b[95m"
     ANSI_COLOR_LIGHT_CYAN   = "\x1b[96m"
     ANSI_COLOR_LIGHT_WHITE  = "\x1b[97m"
+    # colors
+    ERROR_COLOR = ANSI_COLOR_RED
 
-
+    # stat_info
+    TYPE_DIR  = 0x4000
+    TYPE_FILE = 0x8000
 
     BASE_COMPUTER = 1024
     BASE_GENERAL  = 1000
@@ -1068,12 +1076,11 @@ if __name__ == '__main__':
         return base ** lf, suffix
 
 
-
-    all_commands = ["var", "shell", "ver", "uname", "uid", "freq", "pwd", "cd", "ls", "ils", "cat", "push", "pull", "rm", "rmdir", "mkdir", "mv", "gc", "stat", "statvfs"]
+    all_commands = ["var", "shell", "ver", "uname", "uid", "freq", "pwd", "cd", "ls", "cat", "push", "pull", "rm", "rmdir", "mkdir", "mv", "gc", "stat", "statvfs"]
     argv = sys.argv[1:]
     colorful = False
     def logerr(msg, prefix = "Error: "):
-        print((ANSI_COLOR_RED if colorful else "") + prefix + msg + (ANSI_RESET_ALL if colorful else ""))
+        print((ERROR_COLOR if colorful else "") + prefix + msg + (ANSI_RESET_ALL if colorful else ""))
     def subcmd_parse_args(parser: argparse.ArgumentParser, args: list[str]):
         try:
             return parser.parse_args(args[1:])
@@ -1126,6 +1133,22 @@ if __name__ == '__main__':
     subcmd_cd_parser = argparse.ArgumentParser("cd", description="Change device's current working directory", epilog="See README.md for more information.", add_help = True)
     subcmd_cd_parser.add_argument("dir", nargs="?", default="/", help="dir to change to. if not specified, change to /")
     subcmd_cd_parser.add_argument("-v", "--verbose", action="store_true", help="output debug info")
+    # ls
+    subcmd_ls_parser = argparse.ArgumentParser("ls", description="List device's files and directories", epilog="See README.md for more information.", add_help = True)
+    subcmd_ls_parser.add_argument("-a", "--all", action="store_true", help="show all files and directories, including hidden ones")
+    subcmd_ls_parser.add_argument("-d", "--dir", action="store_true", help="show directories themselves, not their contents")
+    subcmd_ls_parser.add_argument("-R", "--recursive", action="store_true", help="recursively list directories")
+    subcmd_ls_parser.add_argument("-l", "--long", action="store_true", help="show detailed information about files and directories")
+    subcmd_ls_time_parser_group = subcmd_ls_parser.add_mutually_exclusive_group()
+    subcmd_ls_time_parser_group.add_argument("-sc", "--sort-ctime", action="store_true", help="sort by creation time")
+    subcmd_ls_time_parser_group.add_argument("-sm", "--sort-mtime", action="store_true", help="sort by modification time")
+    subcmd_ls_time_parser_group.add_argument("-sa", "--sort-atime", action="store_true", help="sort by access time")
+    subcmd_ls_time_parser_group.add_argument("-sn", "--sort-name", action="store_true", help="sort by name")
+    subcmd_ls_time_parser_group.add_argument("-ss", "--sort-size", action="store_true", help="sort by size")
+    subcmd_ls_time_parser_group.add_argument("-sv", "--sort-version", action="store_true", help="sort by version")
+    subcmd_ls_parser.add_argument("dir", nargs="?", default=".", help="dir to list. if not specified, list .")
+    subcmd_ls_parser.add_argument("-v", "--verbose", action="store_true", help="output debug info")
+    subcmd_ls_parser.add_argument("--test", action="store_true", help="test")
 
 
     maincmd_argv = []
@@ -1161,6 +1184,14 @@ if __name__ == '__main__':
         logerr(traceback.format_exc(), "")
         exit(1)
     shell_workdir = ""
+    DIR_COLOR   = ANSI_COLOR_GREEN
+    FILE_COLOR  = ""
+    LINK_COLOR  = ANSI_COLOR_BLUE
+    CHAR_COLOR  = ANSI_COLOR_YELLOW
+    BLOCK_COLOR = ANSI_COLOR_LIGHT_BLACK
+    FIFO_COLOR  = ANSI_COLOR_PURPLE
+    SOCK_COLOR  = ANSI_COLOR_CYAN
+    UNKNOWN_COLOR = ANSI_COLOR_RED
     def match_subcmd(subcmd_argv: list[str]):
         global shell_workdir
         subcmd = subcmd_argv[0]
@@ -1262,9 +1293,54 @@ if __name__ == '__main__':
                     logerr(traceback.format_exc(), "")
                     return
                 shell_workdir = opt.getcwd()
-            case "ls":...
-                 
-
+            case "ls":
+                s_args = subcmd_parse_args(subcmd_ls_parser, subcmd_argv)
+                if not s_args: return
+                if s_args.test:
+                    paths = [__types__.ilistdir_item("dir", stat.S_IFDIR, 1),
+                             __types__.ilistdir_item("file", stat.S_IFREG, 2),
+                             __types__.ilistdir_item("link", stat.S_IFLNK, 3),
+                             __types__.ilistdir_item("char", stat.S_IFCHR, 4),
+                             __types__.ilistdir_item("block", stat.S_IFBLK, 5),
+                             __types__.ilistdir_item("fifo", stat.S_IFIFO, 6),
+                             __types__.ilistdir_item("sock", stat.S_IFSOCK, 7),
+                             __types__.ilistdir_item("unknown", 0, 8)
+                            ]
+                else:
+                    try:
+                        paths = opt.ilistdir(s_args.dir)
+                    except BaseException:
+                        logerr(traceback.format_exc(), "")
+                        return
+                ter_w, _ = os.get_terminal_size()
+                name_max = 0
+                prt_list = []
+                for path in paths:
+                    match path.type:
+                        case stat.S_IFDIR:
+                            path_color = DIR_COLOR
+                        case stat.S_IFREG:
+                            path_color = FILE_COLOR
+                        case stat.S_IFLNK:
+                            path_color = LINK_COLOR
+                        case stat.S_IFCHR:
+                            path_color = CHAR_COLOR
+                        case stat.S_IFBLK:
+                            path_color = BLOCK_COLOR
+                        case stat.S_IFIFO:
+                            path_color = FIFO_COLOR
+                        case stat.S_IFSOCK:
+                            path_color = SOCK_COLOR
+                        case _:
+                            path_color = UNKNOWN_COLOR
+                    prt = f"{path_color if colorful else ""}{path.name}{ANSI_RESET_ALL if colorful else ""}"
+                    name_max = max(name_max, len(prt))
+                    prt_list.append(prt)
+                lw = ter_w / (name_max + 1)
+                cw = lw
+                for prt in prt_list:
+                    print(f"{prt:{lw}}", end=" ")
+                print()
                 
             case _:
                 logerr(f"unknown subcommand: {subcmd}", "")
@@ -1272,8 +1348,7 @@ if __name__ == '__main__':
         global shell_workdir
         shell_workdir = opt.getcwd()
         while True:
-            line = input(f"{ANSI_COLOR_GREEN if colorful else ""}{shell_workdir}{ANSI_RESET_ALL if colorful else ""} > ")
-            line = line.replace("$PWD", shell_workdir)
+            line = input(f"{DIR_COLOR if colorful else ""}{shell_workdir}{ANSI_RESET_ALL if colorful else ""} > ")
             args = shlex.split(line)
             #print(args)
             if len(args) == 0:
@@ -1284,6 +1359,12 @@ if __name__ == '__main__':
                     continue
                 else:
                     break
+            elif args[0] == "echo":
+                try:
+                    print(" ".join(args[1:]))
+                except IndexError:
+                    print("")
+                continue
             match_subcmd(args)
     for subcmd_argv in subcmd_argv_list:
         match_subcmd(subcmd_argv)
