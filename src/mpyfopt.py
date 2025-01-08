@@ -1075,6 +1075,10 @@ if __name__ == '__main__':
             return 1, suffix_list[0]
         return base ** lf, suffix
 
+    logf = open("mpyfopt.log", "w")
+    def log(*msg: str):
+        print(*msg, file = logf, flush = True)
+
 
     all_commands = ["var", "shell", "ver", "uname", "uid", "freq", "pwd", "cd", "ls", "cat", "push", "pull", "rm", "rmdir", "mkdir", "mv", "gc", "stat", "statvfs"]
     argv = sys.argv[1:]
@@ -1137,16 +1141,18 @@ if __name__ == '__main__':
     subcmd_ls_parser = argparse.ArgumentParser("ls", description="List device's files and directories", epilog="See README.md for more information.", add_help = True)
     subcmd_ls_parser.add_argument("-a", "--all", action="store_true", help="show all files and directories, including hidden ones")
     subcmd_ls_parser.add_argument("-d", "--dir", action="store_true", help="show directories themselves, not their contents")
-    subcmd_ls_parser.add_argument("-R", "--recursive", action="store_true", help="recursively list directories")
+    subcmd_ls_parser.add_argument("-r", "--recursive", action="store_true", help="recursively list directories")
     subcmd_ls_parser.add_argument("-l", "--long", action="store_true", help="show detailed information about files and directories")
-    subcmd_ls_time_parser_group = subcmd_ls_parser.add_mutually_exclusive_group()
-    subcmd_ls_time_parser_group.add_argument("-sc", "--sort-ctime", action="store_true", help="sort by creation time")
-    subcmd_ls_time_parser_group.add_argument("-sm", "--sort-mtime", action="store_true", help="sort by modification time")
-    subcmd_ls_time_parser_group.add_argument("-sa", "--sort-atime", action="store_true", help="sort by access time")
-    subcmd_ls_time_parser_group.add_argument("-sn", "--sort-name", action="store_true", help="sort by name")
-    subcmd_ls_time_parser_group.add_argument("-ss", "--sort-size", action="store_true", help="sort by size")
-    subcmd_ls_time_parser_group.add_argument("-sv", "--sort-version", action="store_true", help="sort by version")
-    subcmd_ls_parser.add_argument("dir", nargs="?", default=".", help="dir to list. if not specified, list .")
+    subcmd_ls_pack_parser_group = subcmd_ls_parser.add_mutually_exclusive_group()
+    subcmd_ls_pack_parser_group.add_argument("-R", "--row", action="store_true", help="only show itesms in a single row")
+    subcmd_ls_pack_parser_group.add_argument("-C", "--column", action="store_true", help="only show itesms in a single column")
+    subcmd_ls_sort_parser_group = subcmd_ls_parser.add_mutually_exclusive_group()
+    subcmd_ls_sort_parser_group.add_argument("-sc", "--sort-ctime", action="store_true", help="sort by creation time")
+    subcmd_ls_sort_parser_group.add_argument("-sm", "--sort-mtime", action="store_true", help="sort by modification time")
+    subcmd_ls_sort_parser_group.add_argument("-sa", "--sort-atime", action="store_true", help="sort by access time")
+    subcmd_ls_sort_parser_group.add_argument("-sn", "--sort-name", action="store_true", help="sort by name")
+    subcmd_ls_parser.add_argument("-ss", "--sort-size", action="store_true", help="sort by size. Only used for file, and priority over all sorting methods.")
+    subcmd_ls_parser.add_argument("dirs", nargs="*", default=["."], help="dir to list. if not specified, list .")
     subcmd_ls_parser.add_argument("-v", "--verbose", action="store_true", help="output debug info")
     subcmd_ls_parser.add_argument("--test", action="store_true", help="test")
 
@@ -1202,7 +1208,7 @@ if __name__ == '__main__':
                 try:
                     shell()
                 except KeyboardInterrupt:
-                    logerr("KeyboardInterrupt", "")
+                    logerr("\nKeyboardInterrupt", "")
                 except BaseException:
                     logerr(traceback.format_exc(), "")
                     pass
@@ -1295,7 +1301,49 @@ if __name__ == '__main__':
                 shell_workdir = opt.getcwd()
             case "ls":
                 s_args = subcmd_parse_args(subcmd_ls_parser, subcmd_argv)
+                ter_w, _ = os.get_terminal_size()
                 if not s_args: return
+                def __subcmd_ls_lfunc(paths: str, loaded: bool = False):
+                    for path in paths:
+                        items = []
+                        item_stats = []
+                        namemax = 0
+                        seplen = 3
+                        try:
+                            pathi = opt.stat(path, verbose = s_args.verbose)
+                        except BaseException:
+                            logerr(traceback.format_exc(), "")
+                            continue
+                        items.append(pathi)
+                        item_stats.append(pathi)
+                        name_max = max(name_max, len(path))
+                    for path, pathi in zip(items, item_stats):
+                        if s_args.row:
+                            pass
+                        elif s_args.column:
+                            pass
+                        else:
+
+                if len(s_args.dirs) == 1:
+                    dpath = s_args.dirs[0]
+                    try:
+                        pathi = opt.stat(dpath, verbose = s_args.verbose)
+                    except BaseException:
+                        logerr(traceback.format_exc(), "")
+                        return
+                    if stat.S_ISDIR(pathi.st_mode):
+                        try:
+                            paths = opt.listdir(dpath, verbose = s_args.verbose)
+                        except BaseException:
+                            logerr(traceback.format_exc(), "")
+                            return
+                        __subcmd_ls_lfunc(paths, True)
+                    else:
+                        __subcmd_ls_lfunc([dpath])
+                else:
+                    __subcmd_ls_lfunc(s_args.dirs)
+                """
+                print("Listing directory:", s_args.dir)
                 if s_args.test:
                     paths = [__types__.ilistdir_item("dir", stat.S_IFDIR, 1),
                              __types__.ilistdir_item("file", stat.S_IFREG, 2),
@@ -1308,13 +1356,14 @@ if __name__ == '__main__':
                             ]
                 else:
                     try:
-                        paths = opt.ilistdir(s_args.dir)
+                        paths = opt.ilistdir(s_args.dir, verbose = s_args.verbose)
                     except BaseException:
                         logerr(traceback.format_exc(), "")
                         return
                 ter_w, _ = os.get_terminal_size()
                 name_max = 0
                 prt_list = []
+                prt_color_list = []
                 for path in paths:
                     match path.type:
                         case stat.S_IFDIR:
@@ -1333,23 +1382,40 @@ if __name__ == '__main__':
                             path_color = SOCK_COLOR
                         case _:
                             path_color = UNKNOWN_COLOR
-                    prt = f"{path_color if colorful else ""}{path.name}{ANSI_RESET_ALL if colorful else ""}"
+                    prt = path.name
                     name_max = max(name_max, len(prt))
                     prt_list.append(prt)
-                lw = ter_w / (name_max + 1)
-                cw = lw
-                for prt in prt_list:
-                    print(f"{prt:{lw}}", end=" ")
+                    prt_color_list.append(path_color)
+                print(name_max)
+                print(ter_w)
+                cw = 0
+                for prt_color, prt in zip(prt_color_list, prt_list):
+                    print(f"{prt_color if colorful else ""}{prt:<{name_max + 3}}{ANSI_RESET_ALL if colorful else ""}", end="")
+                    cw += name_max + 3
+                    if cw >= (ter_w - name_max):
+                        print()
+                        cw = 0
+                    log(cw)
                 print()
-                
+                """
             case _:
                 logerr(f"unknown subcommand: {subcmd}", "")
     def shell():
         global shell_workdir
         shell_workdir = opt.getcwd()
         while True:
-            line = input(f"{DIR_COLOR if colorful else ""}{shell_workdir}{ANSI_RESET_ALL if colorful else ""} > ")
-            args = shlex.split(line)
+            line = ""
+            while True:
+                if line == "":
+                    line += input(f"{DIR_COLOR if colorful else ""}{shell_workdir}{ANSI_RESET_ALL if colorful else ""} > ")
+                else:
+                    line += input("> ")
+                try:
+                    args = shlex.split(line)
+                except ValueError:
+                    pass
+                else:
+                    break
             #print(args)
             if len(args) == 0:
                 continue
