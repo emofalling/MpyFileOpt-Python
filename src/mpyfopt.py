@@ -1322,7 +1322,7 @@ if __name__ == '__main__':
                             pass
                         elif s_args.column:
                             pass
-                        else:
+                        else:pass
 
                 if len(s_args.dirs) == 1:
                     dpath = s_args.dirs[0]
