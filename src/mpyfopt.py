@@ -1152,6 +1152,9 @@ if __name__ == '__main__':
     subcmd_ls_sort_parser_group.add_argument("-sa", "--sort-atime", action="store_true", help="sort by access time")
     subcmd_ls_sort_parser_group.add_argument("-sn", "--sort-name", action="store_true", help="sort by name")
     subcmd_ls_parser.add_argument("-ss", "--sort-size", action="store_true", help="sort by size. Only used for file, and priority over all sorting methods.")
+    subcmd_ls_parser.add_argument("--sep", default=3, type=int, help="number of spaces between items. default 3")
+    subcmd_ls_parser.add_argument("-sC", "--sep-comma", action="store_true", help="use comma as separator")
+    subcmd_ls_parser.add_argument("-Q", "--quote", action="store_true", help="quote items")
     subcmd_ls_parser.add_argument("dirs", nargs="*", default=["."], help="dir to list. if not specified, list .")
     subcmd_ls_parser.add_argument("-v", "--verbose", action="store_true", help="output debug info")
     subcmd_ls_parser.add_argument("--test", action="store_true", help="test")
@@ -1198,6 +1201,11 @@ if __name__ == '__main__':
     FIFO_COLOR  = ANSI_COLOR_PURPLE
     SOCK_COLOR  = ANSI_COLOR_CYAN
     UNKNOWN_COLOR = ANSI_COLOR_RED
+    def mpy_path_append(p0: str, p1: str):
+        if p0[-1] == "/":
+            return p0 + p1
+        else:
+            return p0 + "/" + p1
     def match_subcmd(subcmd_argv: list[str]):
         global shell_workdir
         subcmd = subcmd_argv[0]
@@ -1303,29 +1311,83 @@ if __name__ == '__main__':
                 s_args = subcmd_parse_args(subcmd_ls_parser, subcmd_argv)
                 ter_w, _ = os.get_terminal_size()
                 if not s_args: return
-                def __subcmd_ls_lfunc(paths: str, loaded: bool = False):
+                if s_args.sep < 0:
+                    logerr("sep must be greater than 0", "")
+                    return
+                def __subcmd_ls_lfunc(paths: str, basepath: str, loaded: bool = False):
+                    if s_args.quote:
+                        basepath_p = f"\"{repr(basepath)[1:-1]}\""
+                    else:
+                        basepath_p = basepath
+                    dirs = []
+                    items = []
+                    item_colors = []
+                    item_stats = []
+                    name_max = 0
+                    seplen = s_args.sep
                     for path in paths:
-                        items = []
-                        item_stats = []
-                        namemax = 0
-                        seplen = 3
                         try:
-                            pathi = opt.stat(path, verbose = s_args.verbose)
+                            pathi = opt.stat(mpy_path_append(basepath, path), verbose = s_args.verbose)
                         except BaseException:
                             logerr(traceback.format_exc(), "")
                             continue
-                        items.append(pathi)
+                        if stat.S_ISDIR(pathi.st_mode):
+                            dirs.append(path)
+                        if s_args.quote:
+                            path = f"\"{repr(path)[1:-1]}\""
+                        items.append(path)
                         item_stats.append(pathi)
                         name_max = max(name_max, len(path))
-                    for path, pathi in zip(items, item_stats):
+                    for pathi in item_stats:
+                        match pathi.st_mode:
+                            case stat.S_IFDIR:
+                                path_color = DIR_COLOR
+                            case stat.S_IFREG:
+                                path_color = FILE_COLOR
+                            case stat.S_IFLNK:
+                                path_color = LINK_COLOR
+                            case stat.S_IFCHR:
+                                path_color = CHAR_COLOR
+                            case stat.S_IFBLK:
+                                path_color = BLOCK_COLOR
+                            case stat.S_IFIFO:
+                                path_color = FIFO_COLOR
+                            case stat.S_IFSOCK:
+                                path_color = SOCK_COLOR
+                            case _:
+                                path_color = UNKNOWN_COLOR
+                        item_colors.append(path_color)
+                    enditem = len(items) - 1
+                    cw = 0
+                    if s_args.recursive:
+                        print(f"{DIR_COLOR if colorful else ''}{basepath_p}{ANSI_RESET_ALL if colorful else ''}:")
+                    for path, pathi, color, i in zip(items, item_stats, item_colors, range(len(items))):
                         if s_args.row:
-                            pass
+                            print(f"{color if colorful else ""}{path}{ANSI_RESET_ALL if colorful else ""}", end=((" " if i==enditem else ",") + " " * (seplen - 1)) if s_args.sep_comma else (" " * seplen))
                         elif s_args.column:
-                            pass
-                        else:pass
-
+                            print(f"{color if colorful else ""}{path}{ANSI_RESET_ALL if colorful else ""}")
+                        else:
+                            print(f"{color if colorful else ""}{path:<{name_max}}{ANSI_RESET_ALL if colorful else ""}", end=((" " if i==enditem else ",") + " " * (seplen - 1)) if s_args.sep_comma else (" " * seplen))
+                            cw += name_max + seplen
+                            if cw >= (ter_w - name_max - seplen):
+                                print()
+                                cw = 0
+                    print("\n")
+                    if s_args.recursive:
+                        for dpath in dirs:
+                            try:
+                                paths = opt.listdir(mpy_path_append(basepath, dpath), verbose = s_args.verbose)
+                            except BaseException:
+                                logerr(traceback.format_exc(), "")
+                                continue
+                            __subcmd_ls_lfunc(paths, mpy_path_append(basepath, dpath), True)
                 if len(s_args.dirs) == 1:
                     dpath = s_args.dirs[0]
+                    try:
+                        cwd = opt.getcwd(verbose = s_args.verbose)
+                    except BaseException:
+                        logerr(traceback.format_exc(), "")
+                        return
                     try:
                         pathi = opt.stat(dpath, verbose = s_args.verbose)
                     except BaseException:
@@ -1337,11 +1399,11 @@ if __name__ == '__main__':
                         except BaseException:
                             logerr(traceback.format_exc(), "")
                             return
-                        __subcmd_ls_lfunc(paths, True)
+                        __subcmd_ls_lfunc(paths, cwd, True)
                     else:
-                        __subcmd_ls_lfunc([dpath])
+                        __subcmd_ls_lfunc([dpath], cwd)
                 else:
-                    __subcmd_ls_lfunc(s_args.dirs)
+                    __subcmd_ls_lfunc(s_args.dirs, cwd)
                 """
                 print("Listing directory:", s_args.dir)
                 if s_args.test:
