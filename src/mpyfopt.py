@@ -1370,7 +1370,7 @@ if __name__ == '__main__':
                             print(f"{color if colorful else ""}{path:<{name_max}}{ANSI_RESET_ALL if colorful else ""}", end=((" " if i==enditem else ",") + " " * (seplen - 1)) if s_args.sep_comma else (" " * seplen))
                             cw += name_max + seplen
                             if cw >= (ter_w - name_max - seplen):
-                                print()
+                                print( )
                                 cw = 0
                     print("\n")
                     if s_args.recursive:
