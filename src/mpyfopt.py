@@ -258,7 +258,7 @@ class MpyFileOpt:
             err = self._com_read_string()
             if verbose: print("[4/4] Done.")
             self._dev_raise("get_source_version", err)
-    def uname(self, isstr: bool = True, *, verbose: bool = False) -> tuple[str, str, str, str, str] | tuple[bytes, bytes, bytes, bytes, bytes]:
+    def uname(self, isstr: bool = True, *, verbose: bool = False) -> __types__.uname_result:
         """Read sys.uname from the device
 
            Args
@@ -481,7 +481,7 @@ class MpyFileOpt:
             err = self._com_read_string()
             if verbose: print("[5/5] Done.")
             self._dev_raise("listdir", err)
-    def ilistdir(self, path: str | bytes | bytearray = b".", isstr: bool = True, *, verbose: bool = False) -> list[tuple[str | bytes, int, int]]:
+    def ilistdir(self, path: str | bytes | bytearray = b".", isstr: bool = True, *, verbose: bool = False) -> list[__types__.ilistdir_item]:
         """Read path info list(os.ilistdir) from the device
 
            Args
@@ -856,7 +856,7 @@ class MpyFileOpt:
             if verbose: print("[5/5] Done.")
             self._dev_raise("rename", err)
 
-    def stat(self, path: str | bytes | bytearray, *, verbose: bool = False) -> tuple[int, int, int, int, int, int, int, int, int, int]:
+    def stat(self, path: str | bytes | bytearray, *, verbose: bool = False) -> __types__.stat_result:
         """Get stat(os.stat) from the device
 
         Args
@@ -886,16 +886,16 @@ class MpyFileOpt:
         if ret == SUC:
             if verbose: print("[4/5] Success, Read stat...")
             result = __types__.stat_result(
-                self._com_read_uint(), # st_mode
-                self._com_read_uint(), # st_ino
-                self._com_read_uint(), # st_dev
-                self._com_read_uint(), # st_nlink
-                self._com_read_uint(), # st_uid
-                self._com_read_uint(), # st_gid
-                self._com_read_uint(), # st_size
-                self._com_read_uint(), # st_atime
-                self._com_read_uint(), # st_mtime
-                self._com_read_uint()  # st_ctime
+                self._com_read_int(), # st_mode
+                self._com_read_int(), # st_ino
+                self._com_read_int(), # st_dev
+                self._com_read_int(), # st_nlink
+                self._com_read_int(), # st_uid
+                self._com_read_int(), # st_gid
+                self._com_read_int(), # st_size
+                self._com_read_int(), # st_atime
+                self._com_read_int(), # st_mtime
+                self._com_read_int()  # st_ctime
             )
             if verbose: print("[5/5] Done.")
             return result
@@ -906,7 +906,7 @@ class MpyFileOpt:
             err = self._com_read_string()
             if verbose: print("[5/5] Done.")
             self._dev_raise("stat", err)
-    def statvfs(self, path: str | bytes | bytearray, *, verbose: bool = False) -> tuple[int, int, int, int, int, int, int, int, int, int]:
+    def statvfs(self, path: str | bytes | bytearray, *, verbose: bool = False) -> __types__.statvfs_result:
         """Get filesystem stat(os.statvfs) from the device
 
         Args
@@ -957,7 +957,7 @@ class MpyFileOpt:
             if verbose: print("[5/5] Done.")
             self._dev_raise("statvfs", err)
 
-    def get_gc_info(self, collect: bool = True, *, verbose: bool = False) -> tuple[int, int, int]:
+    def get_gc_info(self, collect: bool = True, *, verbose: bool = False) -> __types__.gc_info:
         """Get GC info from the device
 
         Args
@@ -1026,8 +1026,9 @@ class MpyFileOpt:
 
 
 if __name__ == '__main__':
-    # stat
+    # info
     import stat
+    import datetime
     # errors
     import traceback
     # command line
@@ -1080,7 +1081,7 @@ if __name__ == '__main__':
         print(*msg, file = logf, flush = True)
 
 
-    all_commands = ["var", "shell", "ver", "uname", "uid", "freq", "pwd", "cd", "ls", "cat", "push", "pull", "rm", "rmdir", "mkdir", "mv", "gc", "stat", "statvfs"]
+    all_commands = ["var", "shell", "ver", "uname", "uid", "freq", "pwd", "cd", "ls", "tree", "push", "cat", "pull", "rm", "rmdir", "mkdir", "mv", "gc", "stat", "statvfs"]
     argv = sys.argv[1:]
     colorful = False
     def logerr(msg, prefix = "Error: "):
@@ -1102,7 +1103,7 @@ if __name__ == '__main__':
     
     main_parser.add_argument("-v" , "--verbose"           , action="store_true", help="output debug info")
     main_parser.add_argument("-nc" , "--no-colorful"          , action="store_false", help="make output not colorful. if terminal not support ANSI color escape sequence, recommended select this option")
-
+    main_parser.add_argument("--version", action="version", version=f"{__version__}")
     # main_parser.add_argument("subcommands", nargs=0, help="subcommand and its arguments")
 
     # shell
@@ -1140,17 +1141,18 @@ if __name__ == '__main__':
     # ls
     subcmd_ls_parser = argparse.ArgumentParser("ls", description="List device's files and directories", epilog="See README.md for more information.", add_help = True)
     subcmd_ls_parser.add_argument("-a", "--all", action="store_true", help="show all files and directories, including hidden ones")
-    subcmd_ls_parser.add_argument("-r", "--recursive", action="store_true", help="recursively list directories")
+    subcmd_ls_parser.add_argument("-R", "--recursive", action="store_true", help="recursively list directories")
     subcmd_ls_parser.add_argument("-l", "--long", action="store_true", help="show detailed information about files and directories")
     subcmd_ls_pack_parser_group = subcmd_ls_parser.add_mutually_exclusive_group()
-    subcmd_ls_pack_parser_group.add_argument("-R", "--row", action="store_true", help="only show itesms in a single row")
-    subcmd_ls_pack_parser_group.add_argument("-C", "--column", action="store_true", help="only show itesms in a single column")
+    subcmd_ls_pack_parser_group.add_argument("-r", "--row", action="store_true", help="only show itesms in a single row")
+    subcmd_ls_pack_parser_group.add_argument("-1", "--column", action="store_true", help="only show itesms in a single column")
     subcmd_ls_parser.add_argument("--sep", default=3, type=int, help="number of spaces between items. default 3")
     subcmd_ls_parser.add_argument("-sC", "--sep-comma", action="store_true", help="use comma as separator")
     subcmd_ls_parser.add_argument("-Q", "--quote", action="store_true", help="quote items")
     subcmd_ls_parser.add_argument("-s", "--slash", action="store_true", help="append / to directories")
     subcmd_ls_parser.add_argument("dir", nargs="?", default=".", help="dir to list. if not specified, list .")
     subcmd_ls_parser.add_argument("-v", "--verbose", action="store_true", help="output debug info")
+    # tree
 
     maincmd_argv = []
     subcmd_argv_list = []
@@ -1327,28 +1329,57 @@ if __name__ == '__main__':
                     colorlist = []
                     rstcolor = ANSI_RESET_ALL if colorful else ""
                     itemslist = []
+                    itemsstat: list[__types__.stat_result] = []
+                    itemstotal = 0
+                    authority = "rwxrwxrwx "
+                    namemax_nlink = 0
+                    namemax_uid = 0
+                    namemax_gid = 0
+                    namemax_size = 0
+                    itemstype: list[str] = []
                     dirlist = []
                     namemax = 0
                     for dr in dlist:
                         d = dr.name
+                        if s_args.long:
+                            try:
+                                st = opt.stat(mpy_path_append(path, d))
+                            except BaseException:
+                                logerr(traceback.format_exc(), "")
+                                continue
+                            itemsstat.append(st)
+                            itemstotal += st.st_size
+                            namemax_nlink = max(namemax_nlink, len(str(st.st_nlink)))
+                            namemax_uid = max(namemax_uid, len(str(st.st_uid)))
+                            namemax_gid = max(namemax_gid, len(str(st.st_gid)))
+                            namemax_size = max(namemax_size, len(str(st.st_size)))
+                        else:
+                            itemsstat.append(None)
                         match dr.type:
                             case stat.S_IFDIR:
                                 icolor = DIR_COLOR
                                 dirlist.append(d)
                                 if s_args.slash:
                                     d += "/"
+                                itemstype.append("d")
                             case stat.S_IFREG:
                                 icolor = FILE_COLOR
+                                itemstype.append("-")
                             case stat.S_IFLNK:
                                 icolor = LINK_COLOR
+                                itemstype.append("l")
                             case stat.S_IFCHR:
                                 icolor = CHAR_COLOR
+                                itemstype.append("c")
                             case stat.S_IFBLK:
                                 icolor = BLOCK_COLOR
+                                itemstype.append("b")
                             case stat.S_IFIFO:
                                 icolor = FIFO_COLOR
+                                itemstype.append("p")
                             case stat.S_IFSOCK:
                                 icolor = SOCK_COLOR
+                                itemstype.append("s")
                             case _:
                                 icolor = UNKNOWN_COLOR
                         icolors = icolor if colorful else ""
@@ -1358,18 +1389,36 @@ if __name__ == '__main__':
                         colorlist.append(icolors)
                         namemax = max(namemax, len(d))
                     cw = 0
-                    for i, (d, icolor) in enumerate(zip(itemslist, colorlist)):
-                        if s_args.column:
-                            print(f"{icolor}{d}{rstcolor}{(q_quote if i != maxi_dlist else "")}")
-                        elif s_args.row:
-                            print(f"{icolor}{d}{rstcolor}", end=rowsep if i != maxi_dlist else "")
+                    for i, (d, icolor, type, istat) in enumerate(zip(itemslist, colorlist, itemstype, itemsstat)):
+                        if s_args.long:
+
+                            nlink = istat.st_nlink if istat.st_nlink>0 else "/"
+                            uid = istat.st_uid if istat.st_uid>0 else "/"
+                            gid = istat.st_gid if istat.st_gid>0 else "/"
+                            mtime = istat.st_mtime
+                            if mtime > 0:
+                                dtm = datetime.datetime.fromtimestamp(istat.st_mtime).strftime("%b %d %H:%M:%S")
+                            else:
+                                dtm = "/"
+
+                            listr = f"{type}{authority} {nlink:<{namemax_nlink}} {uid:<{namemax_uid}} {gid:<{namemax_gid}} {istat.st_size:<{namemax_size}} {dtm}  {icolor}{d}{rstcolor}"
+
+                            if s_args.row:
+                                print(listr, end=rowsep if i != maxi_dlist else "")
+                            else:
+                                print(listr + (q_quote if i != maxi_dlist else ""))
                         else:
-                            print(f"{icolor}{(d + (q_quote if i != maxi_dlist else "")):<{namemax + s_args.sep}}{rstcolor}", end="")
-                            cw += namemax + s_args.sep
-                            if cw >= (ter_w - namemax):
-                                print()
-                                cw = 0
-                    if not any([s_args.row, s_args.column]):
+                            if s_args.column:
+                                print(f"{icolor}{d}{rstcolor}{(q_quote if i != maxi_dlist else "")}")
+                            elif s_args.row:
+                                print(f"{icolor}{d}{rstcolor}", end=rowsep if i != maxi_dlist else "")
+                            else:
+                                print(f"{icolor}{(d + (q_quote if i != maxi_dlist else "")):<{namemax + s_args.sep}}{rstcolor}", end="")
+                                cw += namemax + s_args.sep
+                                if cw >= (ter_w - namemax):
+                                    print()
+                                    cw = 0
+                    if not any([s_args.row, s_args.column, s_args.long]):
                         print()
                     if s_args.recursive:
                         print()

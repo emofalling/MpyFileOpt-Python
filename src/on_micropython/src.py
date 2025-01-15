@@ -138,7 +138,7 @@ while True:
         except Exception as e:err(e)
         else:
             uw(S)
-            for i in r:suint(i)
+            for i in r:sint(i)
     elif code==b"\x31":
         try:r=os.statvfs(rstr())
         except Exception as e:err(e)
