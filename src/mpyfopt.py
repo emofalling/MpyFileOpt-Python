@@ -9,7 +9,10 @@ if sys.version_info < (3, 10):
 import os
 import time
 import struct
-from typing import Callable
+# type extension
+from typing import TypeVar, Callable, Any
+from abc import ABC, abstractmethod
+
 # serial
 import serial
 
@@ -60,6 +63,25 @@ RST = b"\xff" # reset
 
 class MpyFileOptError(Exception):
     pass
+class _SupportsReadBinaryIO(ABC):
+    @abstractmethod
+    def readable(self) -> bool:
+        pass
+    @abstractmethod
+    def read(self, size: int | None = -1) -> bytes:
+        pass
+    @abstractmethod
+    def readinto(self, buffer: Any) -> bytes:
+        pass
+SupportsReadBinaryIO = TypeVar("SupportsReadBinaryIO", bound=_SupportsReadBinaryIO)
+class _SupportsWriteBinaryIO(ABC):
+    @abstractmethod
+    def write(self, b: Any) -> int:
+        pass
+    @abstractmethod
+    def writable(self) -> bool:
+        pass
+SupportsWriteBinaryIO = TypeVar("SupportsWriteBinaryIO", bound=_SupportsWriteBinaryIO)
 class __types__:
     class uname_result(namedtuple("uname_result", ["sysname", "nodename", "release", "version" ,"machine"])):
         pass
@@ -529,105 +551,104 @@ class MpyFileOpt:
             err = self._com_read_string()
             if verbose: print("[5/5] Done.")
             self._dev_raise("ilistdir", err)
-    def upload(self, mpy_dst_file: str | bytes | bytearray, src_file: str, block_size: int = 4096, write_callback_function: Callable[[int, int], None] = None, *, verbose: bool = False) -> None:
+    def upload(self, mpy_dst_file: str | bytes | bytearray, src_fp: SupportsReadBinaryIO, src_size: int, block_size: int = 4096, write_callback_function: Callable[[int, int], None] = None, *, verbose: bool = False) -> None:
         """Upload file to the device
 
-           Args
-           ---
-           `mpy_dst_file`: path to write in the device
-           `src_file`: path to read in the host
-           `block_size`: block size to transmit data. It must be > 0. The larger `block_size`, the faster write speed, but the more memory usage on device.
-           `write_callback_function`: callback function to print progress.
-            - `write_callback_function(total:int, cur:int)` is called every time a block is transmitted. `total` is the total size of the file, `cur` is the current size of the file.
-            - in check progress(before sending file), call it with arguments `-1, -1` to test the function not to throw error.
+            Args
+            ---
+            `mpy_dst_file`: path to write in the device
+            `src_fp`: BytesIO object in host that writable. If it is return value from `open()` , the mode must be `rb` or any readable binary mode.
+            `src_size`: size of the file
+            `block_size`: block size to transmit data. It must be > 0. The larger `block_size`, the faster write speed, but the more memory usage on device.
+            `write_callback_function`: callback function to print progress. If it isn't callable, there will not use it.
+             - `write_callback_function(total:int, cur:int)` is called every time a block is transmitted. `total` is the total size of the file, `cur` is the current size of the file.
         
-           `verbose`: if True, print debug info
+            `verbose`: if True, print debug info
 
-           Returns
-           ---
-           None
+            Returns
+            ---
+            None
 
-           Raises
-           ---
-           `ValueError`: if block_size <= 0
-           `TypeError`: if read_callback_function is not callable
-           `TimeoutError`: if read or write time out
-           `MpyFileOptError`: if device return error string
-           Other: not to elaborate
+            Raises
+            ---
+            `ValueError`: if block_size <= 0
+            `TypeError`: if read_callback_function is not callable
+            `TimeoutError`: if read or write time out
+            `MpyFileOptError`: if device return error string
+            Other: not to elaborate
         """
+
         if isinstance(mpy_dst_file, str): 
             if verbose: print("[?/5] Convert path str to bytes...")
             mpy_dst_file = mpy_dst_file.encode(encoding)
-        if verbose: print("[?/5] Check callback function...")
-        if write_callback_function is None:
-            write_callback_function = lambda total, cur: None
+        if verbose: print("[?/5] Check something...")
         if not callable(write_callback_function):
-            raise TypeError("write_callback_function must be callable or None")
-        write_callback_function(-1, -1)
-        if verbose: print("[?/5] Check blocksize...")
+            write_callback_function = lambda total, cur: None
         if block_size <= 0:
             raise ValueError("block_size must be > 0")
-        with open(src_file, "rb") as f:
-            if verbose: print("[1/5] Send command FW...")
-            self._com_write(FW)
-            if verbose: print("[2/5] Send path string, file size, and block size...")
-            self._com_write_string(mpy_dst_file)
-            file_size = os.path.getsize(src_file)
-            self._com_write_uint(file_size)
-            self._com_write_uint(block_size)
-            if verbose: print("[3/5] Wait answer...")
-            ret = self.ser.read(1)
-            if ret == SUC:
-                if verbose: print("[4/5] Success, Send file data...")
-            elif ret == b"":
-                raise TimeoutError("Read time out.")
+        if not isinstance(src_size, int) and src_size < 0:
+            raise TypeError("src_size must be integer and >= 0")
+        if not src_fp.readable():
+            raise IOError("src_fp must be readable")
+        if verbose: print("[1/5] Send command FW...")
+        self._com_write(FW)
+        if verbose: print("[2/5] Send path string, file size, and block size...")
+        self._com_write_string(mpy_dst_file)
+        file_size = src_size
+        self._com_write_uint(file_size)
+        self._com_write_uint(block_size)
+        if verbose: print("[3/5] Wait answer...")
+        ret = self.ser.read(1)
+        if ret == SUC:
+            if verbose: print("[4/5] Success, Send data...")
+        elif ret == b"":
+            raise TimeoutError("Read time out.")
+        else:
+            if verbose: print("[4/5] Failed, Read error string...")
+            err = self._com_read_string()
+            if verbose: print("[5/5] Done.")
+            self._dev_raise("upload", err)
+        buffer = bytearray(block_size)
+        total = file_size
+        cur = 0
+        write_callback_function(total, cur)
+        while file_size > 0:
+            if file_size >= block_size:
+                self._com_write(BW)
+                lendata = block_size
+                src_fp.readinto(buffer)
             else:
-                if verbose: print("[4/5] Failed, Read error string...")
-                err = self._com_read_string()
-                if verbose: print("[5/5] Done.")
-                self._dev_raise("upload", err)
-            buffer = bytearray(block_size)
-            total = file_size
-            cur = 0
-            write_callback_function(total, cur)
-            while file_size > 0:
-                if file_size >= block_size:
-                    self._com_write(BW)
-                    lendata = block_size
-                    f.readinto(buffer)
+                del buffer
+                self._com_write(BE)
+                lendata = file_size
+                self._com_write_uint(lendata)
+                buffer = src_fp.read(lendata)
+            self._com_write(buffer)
+            if verbose: print(f"Send {lendata} bytes")
+            ret = self.ser.read(1)
+            if ret != SUC:
+                if ret == b"":
+                    raise TimeoutError("Read time out.")
                 else:
-                    del buffer
-                    self._com_write(BE)
-                    lendata = file_size
-                    self._com_write_uint(lendata)
-                    buffer = f.read(lendata)
-                self._com_write(buffer)
-                if verbose: print(f"Send {lendata} bytes")
-                ret = self.ser.read(1)
-                if ret != SUC:
-                    if ret == b"":
-                        raise TimeoutError("Read time out.")
-                    else:
-                        if verbose: print("[5/6] Failed, Read error string...")
-                        err = self._com_read_string()
-                        if verbose: print("[6/6] Done.")
-                        self._dev_raise("upload", err)
-                file_size -= lendata
-                cur += lendata
-                write_callback_function(total, cur)
-                if verbose: print(f"Sended {lendata} bytes, {cur}/{total}")
+                    if verbose: print("[5/6] Failed, Read error string...")
+                    err = self._com_read_string()
+                    if verbose: print("[6/6] Done.")
+                    self._dev_raise("upload", err)
+            file_size -= lendata
+            cur += lendata
+            write_callback_function(total, cur)
+            if verbose: print(f"Sended {lendata} bytes, {cur}/{total}")
         if verbose: print("[5/5] Done.")
-    def download(self, mpy_src_file: str | bytes | bytearray, dst_file: str, block_size: int = 4096, read_callback_function: Callable[[int, int], None] = None, *, verbose: bool = False) -> None:
+    def download(self, mpy_src_file: str | bytes | bytearray, dst_fp: SupportsWriteBinaryIO, block_size: int = 4096, read_callback_function: Callable[[int, int], None] = None, *, verbose: bool = False) -> None:
         """Download file from the device
 
             Args
             ---
             `mpy_src_file`: path to read in the device
-            `dst_file`: path to write in the host
+            `dst_fp`: BytesIO object in host that writable. If it is return value from `open()` , the mode must be `wb` or any writable binary mode.
             `block_size`: block size for read/write
-            `read_callback_function`: callback function to print progress.
+            `read_callback_function`: callback function to print progress. If it isn't callable, there will not use it.
                 - `read_callback_function(total:int, cur:int)` is called every time a block is transmitted. `total` is the total size of the file, `cur` is the current size of the file.
-                - in check progress(before sending file), call it with arguments `-1, -1` to test the function not to throw error.
 
             `verbose`: if True, print debug info
 
@@ -647,60 +668,57 @@ class MpyFileOpt:
         if isinstance(mpy_src_file, str):
             if verbose: print("[?/5] Convert path str to bytes...")
             mpy_src_file = mpy_src_file.encode(encoding)
-        if verbose: print("[?/5] Check callback function...")
-        if read_callback_function is None:
-            read_callback_function = lambda total, cur: None
+        if verbose: print("[?/5] Check something...")
         if not callable(read_callback_function):
-            raise TypeError("read_callback_function must be callable or None")
-        read_callback_function(-1, -1)
-        if verbose: print("[?/5] Check blocksize...")
+            read_callback_function = lambda total, cur: None
         if block_size <= 0:
             raise ValueError("block_size must be > 0")
-        with open(dst_file, "wb") as f:
-            if verbose: print("[1/5] Send command FR...")
-            self._com_write(FR)
-            if verbose: print("[2/5] Send path string, and block size...")
-            self._com_write_string(mpy_src_file)
-            self._com_write_uint(block_size)
-            if verbose: print("[3/5] Wait answer...")
-            ret = self.ser.read(1)
-            if ret == SUC:
-                if verbose: print("[4/5] Success, Read file data...")
-            elif ret == b"":
-                raise TimeoutError("Read time out.")
+        if not dst_fp.writable():
+            raise IOError("dst_fp must be writable")
+        if verbose: print("[1/5] Send command FR...")
+        self._com_write(FR)
+        if verbose: print("[2/5] Send path string, and block size...")
+        self._com_write_string(mpy_src_file)
+        self._com_write_uint(block_size)
+        if verbose: print("[3/5] Wait answer...")
+        ret = self.ser.read(1)
+        if ret == SUC:
+            if verbose: print("[4/5] Success, Read file data...")
+        elif ret == b"":
+            raise TimeoutError("Read time out.")
+        else:
+            if verbose: print("[4/5] Failed, Read error string...")
+            err = self._com_read_string()
+            if verbose: print("[5/5] Done.")
+            self._dev_raise("download", err)
+        file_size = self._com_read_uint()
+        if verbose: print(f"File size: {file_size}")
+        total = file_size
+        cur = 0
+        read_callback_function(total, cur)
+        while file_size > 0:
+            if file_size >= block_size:
+                lendata = block_size
+                self._com_write(BW)
             else:
-                if verbose: print("[4/5] Failed, Read error string...")
-                err = self._com_read_string()
-                if verbose: print("[5/5] Done.")
-                self._dev_raise("download", err)
-            file_size = self._com_read_uint()
-            if verbose: print(f"File size: {file_size}")
-            total = file_size
-            cur = 0
-            read_callback_function(total, cur)
-            while file_size > 0:
-                if file_size >= block_size:
-                    lendata = block_size
-                    self._com_write(BW)
+                lendata = file_size
+                self._com_write(BE)
+                self._com_write_uint(lendata)
+            if verbose: print(f"Read {lendata} bytes")
+            ret = self.ser.read(1)
+            if ret != SUC:
+                if ret == b"":
+                    raise TimeoutError("Read time out.")
                 else:
-                    lendata = file_size
-                    self._com_write(BE)
-                    self._com_write_uint(lendata)
-                if verbose: print(f"Read {lendata} bytes")
-                ret = self.ser.read(1)
-                if ret != SUC:
-                    if ret == b"":
-                        raise TimeoutError("Read time out.")
-                    else:
-                        if verbose: print("[5/6] Failed, Read error string...")
-                        err = self._com_read_string()
-                        if verbose: print("[6/6] Done.")
-                        self._dev_raise("download", err)
-                f.write(self.ser.read(lendata))
-                file_size -= lendata
-                cur += lendata
-                read_callback_function(total, cur)
-                if verbose: print(f"Readed {lendata} bytes, {cur}/{total}")
+                    if verbose: print("[5/6] Failed, Read error string...")
+                    err = self._com_read_string()
+                    if verbose: print("[6/6] Done.")
+                    self._dev_raise("download", err)
+            dst_fp.write(self.ser.read(lendata))
+            file_size -= lendata
+            cur += lendata
+            read_callback_function(total, cur)
+            if verbose: print(f"Readed {lendata} bytes, {cur}/{total}")
         if verbose: print("[5/5] Done.")
     def remove(self, file: str | bytes | bytearray, *, verbose: bool = False) -> None:
         """Remove file(os.remove) from the device
@@ -1076,12 +1094,14 @@ if __name__ == '__main__':
             return 1, suffix_list[0]
         return base ** lf, suffix
 
-    logf = open("mpyfopt.log", "w")
-    def log(*msg: str):
-        print(*msg, file = logf, flush = True)
+    if os.path.exists("config.json"):
+        with open("config.json", "r") as f:
+            config = json.load(f)
+    else:
+        config = {"BLOCKSIZE": 4096}
 
 
-    all_commands = ["var", "shell", "ver", "uname", "uid", "freq", "pwd", "cd", "ls", "tree", "push", "cat", "pull", "rm", "rmdir", "mkdir", "mv", "gc", "stat", "statvfs"]
+    all_commands = ["shell", "ver", "uname", "uid", "freq", "pwd", "cd", "ls", "tree", "push", "cat", "pull", "rm", "rmdir", "mkdir", "mv", "gc", "stat", "statvfs"]
     argv = sys.argv[1:]
     colorful = False
     def logerr(msg, prefix = "Error: "):
@@ -1104,7 +1124,7 @@ if __name__ == '__main__':
     main_parser.add_argument("-v" , "--verbose"           , action="store_true", help="output debug info")
     main_parser.add_argument("-nc" , "--no-colorful"          , action="store_false", help="make output not colorful. if terminal not support ANSI color escape sequence, recommended select this option")
     main_parser.add_argument("--version", action="version", version=f"{__version__}")
-    # main_parser.add_argument("subcommands", nargs=0, help="subcommand and its arguments")
+    # main_parser.add_argument("subcommands", nargs=0, help="subcommand and its arguments
 
     # shell
     subcmd_shell_parser = argparse.ArgumentParser("shell", description = "Into a shell to key and run subcommands conveniently.", epilog = "See README.md for more information.", add_help = True)
@@ -1171,6 +1191,7 @@ if __name__ == '__main__':
     print(subcmd_argv_list)
     args = main_parser.parse_args(maincmd_argv)
     colorful = args.no_colorful
+    rstcolor = ANSI_RESET_ALL if colorful else ""
     try:
         opt = MpyFileOpt(
             args.port,
@@ -1195,6 +1216,7 @@ if __name__ == '__main__':
     FIFO_COLOR  = ANSI_COLOR_PURPLE
     SOCK_COLOR  = ANSI_COLOR_CYAN
     UNKNOWN_COLOR = ANSI_COLOR_RED
+    TYPE_COLOR = ANSI_COLOR_GREEN
     def mpy_path_append(p0: str, p1: str):
         if p0[-1] == "/":
             return p0 + p1
@@ -1327,7 +1349,6 @@ if __name__ == '__main__':
                         return
                     maxi_dlist = len(dlist) - 1
                     colorlist = []
-                    rstcolor = ANSI_RESET_ALL if colorful else ""
                     itemslist = []
                     itemsstat: list[__types__.stat_result] = []
                     itemstotal = 0

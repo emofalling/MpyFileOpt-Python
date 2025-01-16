@@ -20,11 +20,13 @@ print(opt.ilistdir("/lib", False, verbose=True))
 print("Start to write file /test.txt from ./wtest.txt")
 def read_write_callback(total, cur):
     print(f"{cur}/{total}  {cur/total*100:.2f}%")
-try:opt.upload("/test.txt", "./wtest.txt", 4096, read_write_callback, verbose=False)
-except Exception as e: print(traceback.format_exc())
+with open("./wtest.txt", "rb") as f:
+    try:opt.upload("/test.txt", f, os.path.getsize("./wtest.txt"), 4096, read_write_callback, verbose=True)
+    except Exception as e: print(traceback.format_exc())
 print("Start to read file /test.txt to ./rtest.txt")
-try:opt.download("/test.txt", "./rtest.txt", 4096, read_write_callback, verbose=False)
-except Exception as e: print(traceback.format_exc())
+with open("./rtest.txt", "wb") as f:
+    try:opt.download("/test.txt", f, 4096, read_write_callback, verbose=True)
+    except Exception as e: print(traceback.format_exc())
 print("Start to mkdir /testdir")
 opt.mkdir("/testdir", verbose=True)
 print("Start to rename /test.txt to /test.txt.bak")
