@@ -1098,6 +1098,12 @@ if __name__ == '__main__':
         except IndexError:
             return 1, suffix_list[0]
         return base ** lf, suffix
+    def _repr(obj: object) -> str:
+        reprobj = repr(obj)
+        if isinstance(obj, str):
+            return f'"{reprobj[1:-1]}"'
+        else:
+            return reprobj
 
     if os.path.exists("config.json"):
         with open("config.json", "r") as f:
@@ -1116,6 +1122,11 @@ if __name__ == '__main__':
             return parser.parse_args(args[1:])
         except SystemExit:
             return False
+    def get_term_size() -> tuple[int, int]:
+        try:
+            return os.get_terminal_size()
+        except OSError:
+            return 80, 25
 
     main_parser = argparse.ArgumentParser(description = "Connect to MicroPython device and do something with subcommands.", epilog = "See README.md for more information.", add_help = True)
     main_parser.add_argument("port", help="serial port")
@@ -1183,9 +1194,11 @@ if __name__ == '__main__':
     subcmd_ls_size_parser_group.add_argument("-si", "--si", action="store_true", help="use SI units. 1K = 1000")
     subcmd_ls_size_parser_group.add_argument("-bi", "--bi", action="store_true", help="use binary units. 1K = 1024")
     subcmd_ls_parser.add_argument("-dp", "--decimal-places", default=3, type=int, help="number of decimal places. It must be >= -1. if it is -1, the decimal places is no limits. default 3")
+    subcmd_ls_parser.add_argument("-j", "--json", action="store_true", help="output json format")
     subcmd_ls_parser.add_argument("dir", nargs="?", default=".", help="dir to list. if not specified, list .")
     subcmd_ls_parser.add_argument("-v", "--verbose", action="store_true", help="output debug info")
     # tree
+    
 
     maincmd_argv = []
     subcmd_argv_list = []
@@ -1338,7 +1351,7 @@ if __name__ == '__main__':
                 shell_workdir = opt.getcwd()
             case "ls":
                 s_args = subcmd_parse_args(subcmd_ls_parser, subcmd_argv)
-                ter_w, _ = os.get_terminal_size()
+                ter_w, _ = get_term_size()
                 if not s_args: return
                 if s_args.sep < 0:
                     logerr("sep must be greater than 0", "")
@@ -1358,12 +1371,21 @@ if __name__ == '__main__':
                 else:
                     logerr("decimal places must be greater than or equal to -1", "")
                     return
-                def __subcmd_ls_lfunc(path: str):
+                if s_args.json:
                     if s_args.recursive:
-                        path_p = f"\"{repr(path)[1:-1]}\"" if s_args.quote else path
+                        json_data = {}
+                    else:
+                        json_data = []
+                def __subcmd_ls_lfunc(path: str, _depth: int = 0):
+                    if s_args.recursive:
+                        path_p = path
+                        path_p = _repr(path_p) if s_args.quote else path_p
                         if s_args.slash:
                             path_p += "/"
-                        print(f"{path_p}:")
+                        if s_args.json:
+                            json_data[path_p] = []
+                        else:
+                            print(f"{path_p}:")
                     try:
                         dlist = opt.ilistdir(path, verbose = s_args.verbose)
                     except BaseException:
@@ -1439,7 +1461,7 @@ if __name__ == '__main__':
                                 icolor = UNKNOWN_COLOR
                         icolors = icolor if colorful else ""
                         if s_args.quote:
-                            d = f"\"{repr(d)[1:-1]}\""
+                            d = f"{_repr(d)}"
                         itemslist.append(d)
                         colorlist.append(icolors)
                         namemax = max(namemax, len(d))
@@ -1452,7 +1474,6 @@ if __name__ == '__main__':
                         sort_index = None
                     if sort_index is not None:
                         itemslist, colorlist, itemstype, itemssizelist, itemsstat = zip(*sorted(zip(itemslist, colorlist, itemstype, itemssizelist, itemsstat), key = lambda x: x[sort_index], reverse = s_args.reverse))
-
                     for i, (d, icolor, type, isize, istat) in enumerate(zip(itemslist, colorlist, itemstype, itemssizelist, itemsstat)):
                         if s_args.long:
 
@@ -1467,29 +1488,44 @@ if __name__ == '__main__':
                                 dtm = "/              "
 
                             listr = f"{type}{authority} {nlink:<{namemax_nlink}} {uid:<{namemax_uid}} {gid:<{namemax_gid}} {isize[0]:>{namemax_size}}{isize[1]} {dtm}  {icolor}{d}{rstcolor}"
-
-                            if s_args.row:
-                                print(listr, end=rowsep if i != maxi_dlist else "")
+                            if s_args.json:
+                                #print(f"    {{\"name\":{_repr(d)}, \"uid\":{_repr(uid)}, \"gid\":{_repr(gid)}}}", end="")
+                                if s_args.recursive:
+                                    json_data[path_p].append({"name":d, "uid":uid, "gid":gid})
+                                else:
+                                    json_data.append({"name":d, "uid":uid, "gid":gid})
                             else:
-                                print(listr + (q_quote if i != maxi_dlist else ""))
+                                if s_args.row:
+                                    print(listr, end=rowsep if i != maxi_dlist else "")
+                                else:
+                                    print(listr + (q_quote if i != maxi_dlist else ""))
                         else:
-                            if s_args.column:
-                                print(f"{icolor}{d}{rstcolor}{(q_quote if i != maxi_dlist else "")}")
-                            elif s_args.row:
-                                print(f"{icolor}{d}{rstcolor}", end=rowsep if i != maxi_dlist else "")
+                            if s_args.json:
+                                #print(f"    {_repr(d)}", end="")
+                                if s_args.recursive:
+                                    json_data[path_p].append(d)
+                                else:
+                                    json_data.append(d)
                             else:
-                                print(f"{icolor}{(d + (q_quote if i != maxi_dlist else "")):<{namemax + s_args.sep}}{rstcolor}", end="")
-                                cw += namemax + s_args.sep
-                                if cw >= (ter_w - namemax):
-                                    print()
-                                    cw = 0
-                    if not any([s_args.row, s_args.column, s_args.long]):
+                                if s_args.column:
+                                    print(f"{icolor}{d}{rstcolor}{(q_quote if i != maxi_dlist else "")}")
+                                elif s_args.row:
+                                    print(f"{icolor}{d}{rstcolor}", end=rowsep if i != maxi_dlist else "")
+                                else:
+                                    print(f"{icolor}{(d + (q_quote if i != maxi_dlist else "")):<{namemax + s_args.sep}}{rstcolor}", end="")
+                                    cw += namemax + s_args.sep
+                                    if cw >= (ter_w - namemax):
+                                        print()
+                                        cw = 0
+                    if not any([s_args.row, s_args.column, s_args.long, s_args.json]):
                         print()
                     if s_args.recursive:
-                        print()
+                        if not s_args.json: print()
                         for d in dirlist:
                             __subcmd_ls_lfunc(mpy_path_append(path, d))
                 __subcmd_ls_lfunc(s_args.dir)
+                if s_args.json:
+                    print(json.dumps(json_data))
             case _:
                 logerr(f"unknown subcommand: {subcmd}", "")
     def shell():
