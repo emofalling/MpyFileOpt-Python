@@ -1082,12 +1082,17 @@ if __name__ == '__main__':
     TYPE_DIR  = 0x4000
     TYPE_FILE = 0x8000
 
-    BASE_COMPUTER = 1024
-    BASE_GENERAL  = 1000
-    SUFFIX_LIST_COMPUTER = ["", "Ki", "Mi", "Gi", "Ti", "Pi", "Ei", "Zi", "Yi", "Bi"]
-    SUFFIX_LIST_GENERAL =  ["", "K" , "M" , "G" , "T" , "P" , "E" , "Z" , "Y" , "B" ]
-    def auto_suffix(num: int, base: int = BASE_GENERAL, suffix_list: list[str] = SUFFIX_LIST_GENERAL) -> tuple[int, str]:
-        lf = math.floor(math.log(num, base))
+    BASE_BI = 1024
+    BASE_SI = 1000
+    SUFFIX_LIST_BI          = ["", "K" , "M" , "G" , "T" , "P" , "E" , "Z" , "Y" , "B"]
+    SUFFIX_LIST_BI_MONO     = SUFFIX_LIST_BI.copy(); SUFFIX_LIST_BI_MONO[0] = " "
+    SUFFIX_LIST_SI          =  ["", "k" , "M" , "G" , "T" , "P" , "E" , "Z" , "Y" , "B"]
+    SUFFIX_LIST_SI_MONO     = SUFFIX_LIST_SI.copy(); SUFFIX_LIST_SI_MONO[0] = " "
+    def auto_suffix(num: int, base: int, suffix_list: list[str]) -> tuple[int, str]:
+        try:
+            lf = math.floor(math.log(num, base))
+        except ValueError:
+            lf = 0
         try:
             suffix = suffix_list[lf]
         except IndexError:
@@ -1163,13 +1168,21 @@ if __name__ == '__main__':
     subcmd_ls_parser.add_argument("-a", "--all", action="store_true", help="show all files and directories, including hidden ones")
     subcmd_ls_parser.add_argument("-R", "--recursive", action="store_true", help="recursively list directories")
     subcmd_ls_parser.add_argument("-l", "--long", action="store_true", help="show detailed information about files and directories")
+    subcmd_ls_sort_parser_group = subcmd_ls_parser.add_mutually_exclusive_group()
+    subcmd_ls_sort_parser_group.add_argument("-S", "--sort-size", action="store_true", help="sort by size")
+    subcmd_ls_sort_parser_group.add_argument("-N", "--sort-name", action="store_true", help="sort by name")
+    subcmd_ls_parser.add_argument("-r", "--reverse", action="store_true", help="reverse the order of the sort")
     subcmd_ls_pack_parser_group = subcmd_ls_parser.add_mutually_exclusive_group()
-    subcmd_ls_pack_parser_group.add_argument("-r", "--row", action="store_true", help="only show itesms in a single row")
-    subcmd_ls_pack_parser_group.add_argument("-1", "--column", action="store_true", help="only show itesms in a single column")
-    subcmd_ls_parser.add_argument("--sep", default=3, type=int, help="number of spaces between items. default 3")
+    subcmd_ls_pack_parser_group.add_argument(      "--row", action="store_true", help="only show itesms in a single row")
+    subcmd_ls_pack_parser_group.add_argument("-c", "--column", action="store_true", help="only show itesms in a single column")
+    subcmd_ls_parser.add_argument("--sep", default=3, type=int, help="number of spaces between items. It must be >= 0. default 3")
     subcmd_ls_parser.add_argument("-sC", "--sep-comma", action="store_true", help="use comma as separator")
     subcmd_ls_parser.add_argument("-Q", "--quote", action="store_true", help="quote items")
     subcmd_ls_parser.add_argument("-s", "--slash", action="store_true", help="append / to directories")
+    subcmd_ls_size_parser_group = subcmd_ls_parser.add_mutually_exclusive_group()
+    subcmd_ls_size_parser_group.add_argument("-si", "--si", action="store_true", help="use SI units. 1K = 1000")
+    subcmd_ls_size_parser_group.add_argument("-bi", "--bi", action="store_true", help="use binary units. 1K = 1024")
+    subcmd_ls_parser.add_argument("-dp", "--decimal-places", default=3, type=int, help="number of decimal places. It must be >= -1. if it is -1, the decimal places is no limits. default 3")
     subcmd_ls_parser.add_argument("dir", nargs="?", default=".", help="dir to list. if not specified, list .")
     subcmd_ls_parser.add_argument("-v", "--verbose", action="store_true", help="output debug info")
     # tree
@@ -1336,6 +1349,15 @@ if __name__ == '__main__':
                 else:
                     rowsep = " " * s_args.sep
                     q_quote = ""
+                if s_args.decimal_places > 0:
+                    _round = round
+                elif s_args.decimal_places == 0:
+                    _round = lambda x, _: round(x)
+                elif s_args.decimal_places == -1:
+                    _round = lambda x, _: x
+                else:
+                    logerr("decimal places must be greater than or equal to -1", "")
+                    return
                 def __subcmd_ls_lfunc(path: str):
                     if s_args.recursive:
                         path_p = f"\"{repr(path)[1:-1]}\"" if s_args.quote else path
@@ -1356,13 +1378,14 @@ if __name__ == '__main__':
                     namemax_nlink = 0
                     namemax_uid = 0
                     namemax_gid = 0
+                    itemssizelist = []
                     namemax_size = 0
                     itemstype: list[str] = []
                     dirlist = []
                     namemax = 0
                     for dr in dlist:
                         d = dr.name
-                        if s_args.long:
+                        if s_args.long or s_args.sort_size:
                             try:
                                 st = opt.stat(mpy_path_append(path, d))
                             except BaseException:
@@ -1373,9 +1396,20 @@ if __name__ == '__main__':
                             namemax_nlink = max(namemax_nlink, len(str(st.st_nlink)))
                             namemax_uid = max(namemax_uid, len(str(st.st_uid)))
                             namemax_gid = max(namemax_gid, len(str(st.st_gid)))
-                            namemax_size = max(namemax_size, len(str(st.st_size)))
+                            size_raw = st.st_size
+                            if s_args.bi:
+                                div, sif = auto_suffix(size_raw, 1024, SUFFIX_LIST_BI_MONO)
+                            elif s_args.si:
+                                div, sif = auto_suffix(size_raw, 1000, SUFFIX_LIST_SI_MONO)
+                            else:
+                                div, sif = 1, ""
+                            size = _round(size_raw / div, s_args.decimal_places) if sif != "" else size_raw
+                            itemssizelist.append((size, sif))
+                            namemax_size = max(namemax_size, len(str(size)))
+
                         else:
                             itemsstat.append(None)
+                            itemssizelist.append((0, ""))
                         match dr.type:
                             case stat.S_IFDIR:
                                 icolor = DIR_COLOR
@@ -1410,7 +1444,16 @@ if __name__ == '__main__':
                         colorlist.append(icolors)
                         namemax = max(namemax, len(d))
                     cw = 0
-                    for i, (d, icolor, type, istat) in enumerate(zip(itemslist, colorlist, itemstype, itemsstat)):
+                    if s_args.sort_name:
+                        sort_index = 0
+                    elif s_args.sort_size:
+                        sort_index = 3
+                    else:
+                        sort_index = None
+                    if sort_index is not None:
+                        itemslist, colorlist, itemstype, itemssizelist, itemsstat = zip(*sorted(zip(itemslist, colorlist, itemstype, itemssizelist, itemsstat), key = lambda x: x[sort_index], reverse = s_args.reverse))
+
+                    for i, (d, icolor, type, isize, istat) in enumerate(zip(itemslist, colorlist, itemstype, itemssizelist, itemsstat)):
                         if s_args.long:
 
                             nlink = istat.st_nlink if istat.st_nlink>0 else "/"
@@ -1420,9 +1463,10 @@ if __name__ == '__main__':
                             if mtime > 0:
                                 dtm = datetime.datetime.fromtimestamp(istat.st_mtime).strftime("%b %d %H:%M:%S")
                             else:
-                                dtm = "/"
+                                #     "Jan 01 08:00:00"
+                                dtm = "/              "
 
-                            listr = f"{type}{authority} {nlink:<{namemax_nlink}} {uid:<{namemax_uid}} {gid:<{namemax_gid}} {istat.st_size:<{namemax_size}} {dtm}  {icolor}{d}{rstcolor}"
+                            listr = f"{type}{authority} {nlink:<{namemax_nlink}} {uid:<{namemax_uid}} {gid:<{namemax_gid}} {isize[0]:>{namemax_size}}{isize[1]} {dtm}  {icolor}{d}{rstcolor}"
 
                             if s_args.row:
                                 print(listr, end=rowsep if i != maxi_dlist else "")
