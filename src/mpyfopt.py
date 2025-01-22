@@ -73,7 +73,6 @@ class _SupportsReadBinaryIO(ABC):
     @abstractmethod
     def readinto(self, buffer: Any) -> bytes:
         pass
-SupportsReadBinaryIO = TypeVar("SupportsReadBinaryIO", bound=_SupportsReadBinaryIO)
 class _SupportsWriteBinaryIO(ABC):
     @abstractmethod
     def write(self, b: Any) -> int:
@@ -82,17 +81,18 @@ class _SupportsWriteBinaryIO(ABC):
     def writable(self) -> bool:
         pass
 SupportsWriteBinaryIO = TypeVar("SupportsWriteBinaryIO", bound=_SupportsWriteBinaryIO)
-class __types__:
-    class uname_result(namedtuple("uname_result", ["sysname", "nodename", "release", "version" ,"machine"])):
-        pass
-    class ilistdir_item(namedtuple("ilistdir_item", ["name", "type", "inode"])):
-        pass
-    class stat_result(namedtuple("stat_result", ["st_mode", "st_ino", "st_dev", "st_nlink", "st_uid", "st_gid", "st_size", "st_atime", "st_mtime", "st_ctime"])):
-        pass
-    class statvfs_result(namedtuple("statvfs_result", ["f_bsize", "f_frsize", "f_blocks", "f_bfree", "f_bavail", "f_files", "f_ffree", "f_favail", "f_flag", "f_namemax"])):
-        pass
-    class gc_info(namedtuple("gc_info", ["used", "free"])):
-        pass
+SupportsReadBinaryIO = TypeVar("SupportsReadBinaryIO", bound=_SupportsReadBinaryIO)
+class uname_result(namedtuple("uname_result", ["sysname", "nodename", "release", "version" ,"machine"])):
+    pass
+class ilistdir_item(namedtuple("ilistdir_item", ["name", "type", "inode"])):
+    pass
+class stat_result(namedtuple("stat_result", ["st_mode", "st_ino", "st_dev", "st_nlink", "st_uid", "st_gid", "st_size", "st_atime", "st_mtime", "st_ctime"])):
+    pass
+class statvfs_result(namedtuple("statvfs_result", ["f_bsize", "f_frsize", "f_blocks", "f_bfree", "f_bavail", "f_files", "f_ffree", "f_favail", "f_flag", "f_namemax"])):
+    pass
+class gc_info(namedtuple("gc_info", ["used", "free"])):
+    pass
+
 class MpyFileOpt:
     def __init__(self, 
                  port: str, 
@@ -280,7 +280,7 @@ class MpyFileOpt:
             err = self._com_read_string()
             if verbose: print("[4/4] Done.")
             self._dev_raise("get_source_version", err)
-    def uname(self, isstr: bool = True, *, verbose: bool = False) -> __types__.uname_result:
+    def uname(self, isstr: bool = True, *, verbose: bool = False) -> uname_result:
         """Read sys.uname from the device
 
            Args
@@ -304,7 +304,7 @@ class MpyFileOpt:
         ret = self.ser.read(1)
         if ret == SUC:
             if verbose: print("[3/4] Success, Read uname...")
-            result = __types__.uname_result(
+            result = uname_result(
                 self._com_read_string().decode(encoding) if isstr else self._com_read_string(),
                 self._com_read_string().decode(encoding) if isstr else self._com_read_string(),
                 self._com_read_string().decode(encoding) if isstr else self._com_read_string(),
@@ -503,7 +503,7 @@ class MpyFileOpt:
             err = self._com_read_string()
             if verbose: print("[5/5] Done.")
             self._dev_raise("listdir", err)
-    def ilistdir(self, path: str | bytes | bytearray = b".", isstr: bool = True, *, verbose: bool = False) -> list[__types__.ilistdir_item]:
+    def ilistdir(self, path: str | bytes | bytearray = b".", isstr: bool = True, *, verbose: bool = False) -> list[ilistdir_item]:
         """Read path info list(os.ilistdir) from the device
 
            Args
@@ -541,7 +541,7 @@ class MpyFileOpt:
                 name  = self._com_read_string()
                 type  = self._com_read_uint()
                 inode = self._com_read_uint()
-                result.append(__types__.ilistdir_item(name.decode(encoding) if isstr else name, type, inode))
+                result.append(ilistdir_item(name.decode(encoding) if isstr else name, type, inode))
             if verbose: print("[5/5] Done.")
             return result
         elif ret == b"":
@@ -874,7 +874,7 @@ class MpyFileOpt:
             if verbose: print("[5/5] Done.")
             self._dev_raise("rename", err)
 
-    def stat(self, path: str | bytes | bytearray, *, verbose: bool = False) -> __types__.stat_result:
+    def stat(self, path: str | bytes | bytearray, *, verbose: bool = False) -> stat_result:
         """Get stat(os.stat) from the device
 
         Args
@@ -903,7 +903,7 @@ class MpyFileOpt:
         ret = self.ser.read(1)
         if ret == SUC:
             if verbose: print("[4/5] Success, Read stat...")
-            result = __types__.stat_result(
+            result = stat_result(
                 self._com_read_int(), # st_mode
                 self._com_read_int(), # st_ino
                 self._com_read_int(), # st_dev
@@ -924,7 +924,7 @@ class MpyFileOpt:
             err = self._com_read_string()
             if verbose: print("[5/5] Done.")
             self._dev_raise("stat", err)
-    def statvfs(self, path: str | bytes | bytearray, *, verbose: bool = False) -> __types__.statvfs_result:
+    def statvfs(self, path: str | bytes | bytearray, *, verbose: bool = False) -> statvfs_result:
         """Get filesystem stat(os.statvfs) from the device
 
         Args
@@ -953,7 +953,7 @@ class MpyFileOpt:
         ret = self.ser.read(1)
         if ret == SUC:
             if verbose: print("[4/5] Success, Read statvfs...")
-            result = __types__.statvfs_result(
+            result = statvfs_result(
                 self._com_read_int(), # f_bsize
                 self._com_read_int(), # f_frsize
                 self._com_read_int(), # f_blocks
@@ -975,7 +975,7 @@ class MpyFileOpt:
             if verbose: print("[5/5] Done.")
             self._dev_raise("statvfs", err)
 
-    def get_gc_info(self, collect: bool = True, *, verbose: bool = False) -> __types__.gc_info:
+    def get_gc_info(self, collect: bool = True, *, verbose: bool = False) -> gc_info:
         """Get GC info from the device
 
         Args
@@ -1001,7 +1001,7 @@ class MpyFileOpt:
         ret = self.ser.read(1)
         if ret == SUC:
             if verbose: print("[4/5] Success, Read gc info...")
-            result = __types__.gc_info(
+            result = gc_info(
                 self._com_read_int(), # mem_alloc
                 self._com_read_int(), # mem_free
             )
@@ -1075,6 +1075,10 @@ if __name__ == '__main__':
     ANSI_COLOR_LIGHT_PURPLE = "\x1b[95m"
     ANSI_COLOR_LIGHT_CYAN   = "\x1b[96m"
     ANSI_COLOR_LIGHT_WHITE  = "\x1b[97m"
+    ANSI_CHAR_TNODE         = "\u251c"
+    ANSI_CHAR_TEND          = "\u2514"
+    ANSI_CHAR_VLINE         = "\u2502"
+    ANSI_CHAR_HLINE         = "\u2500"
     # colors
     ERROR_COLOR = ANSI_COLOR_RED
 
@@ -1100,7 +1104,7 @@ if __name__ == '__main__':
         return base ** lf, suffix
     def _repr(obj: object) -> str:
         reprobj = repr(obj)
-        if isinstance(obj, str):
+        if type(obj) is str:
             return f'"{reprobj[1:-1]}"'
         else:
             return reprobj
@@ -1112,7 +1116,7 @@ if __name__ == '__main__':
         config = {"BLOCKSIZE": 4096}
 
 
-    all_commands = ["shell", "ver", "uname", "uid", "freq", "pwd", "cd", "ls", "tree", "push", "cat", "pull", "rm", "rmdir", "mkdir", "mv", "gc", "stat", "statvfs"]
+    all_commands = ["shell", "ver", "uname", "uid", "freq", "pwd", "cd", "ls", "tree", "cat", "push", "pull", "rm", "rmdir", "mkdir", "mv", "gc", "stat", "statvfs"]
     argv = sys.argv[1:]
     colorful = False
     def logerr(msg, prefix = "Error: "):
@@ -1194,11 +1198,22 @@ if __name__ == '__main__':
     subcmd_ls_size_parser_group.add_argument("-si", "--si", action="store_true", help="use SI units. 1K = 1000")
     subcmd_ls_size_parser_group.add_argument("-bi", "--bi", action="store_true", help="use binary units. 1K = 1024")
     subcmd_ls_parser.add_argument("-dp", "--decimal-places", default=3, type=int, help="number of decimal places. It must be >= -1. if it is -1, the decimal places is no limits. default 3")
-    subcmd_ls_parser.add_argument("-j", "--json", action="store_true", help="output json format")
+    subcmd_ls_parser.add_argument("-J", "--json", action="store_true", help="output json format")
     subcmd_ls_parser.add_argument("dir", nargs="?", default=".", help="dir to list. if not specified, list .")
     subcmd_ls_parser.add_argument("-v", "--verbose", action="store_true", help="output debug info")
     # tree
-    
+    subcmd_tree_parser = argparse.ArgumentParser("tree", description="List device's files and directories in tree format", epilog="See README.md for more information.", add_help = True)
+    subcmd_tree_parser.add_argument("-sl", "--slash", action="store_true", help="append / to directories")
+    subcmd_tree_parser.add_argument("-hl", "--hline-len", default=2, type=int, help="number of horizontal line with every items. It must be >= 0. default 2")
+    subcmd_tree_parser.add_argument("--noreport", action="store_true", help="Turn off file/directory count at end of tree listing")
+    subcmd_tree_parser.add_argument("-Q", "--quote", action="store_true", help="quote items")
+    subcmd_tree_parser.add_argument("-L", "--level", default=-1, type=int, help="max display depth of the directory tree. It must be > 0. default not limited")
+    subcmd_tree_outfmt_parser_group = subcmd_tree_parser.add_mutually_exclusive_group()
+    subcmd_tree_outfmt_parser_group.add_argument("-J", "--json", action="store_true", help="output json format")
+    subcmd_tree_outfmt_parser_group.add_argument("-X", "--xml", action="store_true", help="output xml format")
+    subcmd_tree_parser.add_argument("dir", nargs="*", default=["."], help="dir to list. if not specified, list .")
+    subcmd_tree_parser.add_argument("-v", "--verbose", action="store_true", help="output debug info")
+    # push
 
     maincmd_argv = []
     subcmd_argv_list = []
@@ -1243,6 +1258,15 @@ if __name__ == '__main__':
     SOCK_COLOR  = ANSI_COLOR_CYAN
     UNKNOWN_COLOR = ANSI_COLOR_RED
     TYPE_COLOR = ANSI_COLOR_GREEN
+    dircolor = DIR_COLOR if colorful else ""
+    filecolor = FILE_COLOR if colorful else ""
+    linkcolor = LINK_COLOR if colorful else ""
+    charcolor = CHAR_COLOR if colorful else ""
+    blockcolor = BLOCK_COLOR if colorful else ""
+    fifocolor = FIFO_COLOR if colorful else ""
+    sockcolor = SOCK_COLOR if colorful else ""
+    unknowncolor = UNKNOWN_COLOR if colorful else ""
+    typecolor = TYPE_COLOR if colorful else ""
     def mpy_path_append(p0: str, p1: str):
         if p0[-1] == "/":
             return p0 + p1
@@ -1376,7 +1400,7 @@ if __name__ == '__main__':
                         json_data = {}
                     else:
                         json_data = []
-                def __subcmd_ls_lfunc(path: str, _depth: int = 0):
+                def __subcmd_ls_lfunc(s_args, path: str):
                     if s_args.recursive:
                         path_p = path
                         path_p = _repr(path_p) if s_args.quote else path_p
@@ -1385,7 +1409,7 @@ if __name__ == '__main__':
                         if s_args.json:
                             json_data[path_p] = []
                         else:
-                            print(f"{path_p}:")
+                            print(f"{dircolor}{path_p}{rstcolor}:")
                     try:
                         dlist = opt.ilistdir(path, verbose = s_args.verbose)
                     except BaseException:
@@ -1394,7 +1418,7 @@ if __name__ == '__main__':
                     maxi_dlist = len(dlist) - 1
                     colorlist = []
                     itemslist = []
-                    itemsstat: list[__types__.stat_result] = []
+                    itemsstat: list[stat_result] = []
                     itemstotal = 0
                     authority = "rwxrwxrwx "
                     namemax_nlink = 0
@@ -1409,7 +1433,7 @@ if __name__ == '__main__':
                         d = dr.name
                         if s_args.long or s_args.sort_size:
                             try:
-                                st = opt.stat(mpy_path_append(path, d))
+                                st = opt.stat(mpy_path_append(path, d), verbose = s_args.verbose)
                             except BaseException:
                                 logerr(traceback.format_exc(), "")
                                 continue
@@ -1522,10 +1546,131 @@ if __name__ == '__main__':
                     if s_args.recursive:
                         if not s_args.json: print()
                         for d in dirlist:
-                            __subcmd_ls_lfunc(mpy_path_append(path, d))
-                __subcmd_ls_lfunc(s_args.dir)
+                            __subcmd_ls_lfunc(s_args, mpy_path_append(path, d))
+                __subcmd_ls_lfunc(s_args, s_args.dir)
                 if s_args.json:
                     print(json.dumps(json_data))
+            case "tree":
+                s_args = subcmd_parse_args(subcmd_tree_parser, subcmd_argv)
+                ter_w, _ = get_term_size()
+                if not s_args: return
+                if s_args.hline_len < 0:
+                    logerr("hline-len must be >= 0", "")
+                    return
+                if s_args.level <= 0 and s_args.level != -1:
+                    logerr("level must be > 0", "")
+                    return
+                def __subcmd_tree_lfunc(s_args, path: str, _depthinfo: list[bool], _countinfo: list[int]):
+                    try:
+                        dlist = opt.ilistdir(path, verbose = s_args.verbose)
+                    except BaseException:
+                        logerr(traceback.format_exc(), "")
+                        return
+                    if len(_depthinfo) == 0:
+                        _countinfo[0] += 1
+                    maxi_dlist = len(dlist) - 1
+                    dpstr = ""
+                    dpstr_tab = "    "
+                    for dp in _depthinfo:
+                        dpstr += (ANSI_CHAR_VLINE if dp else " ") + " " * s_args.hline_len + " "
+                        dpstr_tab += "  "
+                    for i, dr in enumerate(dlist):
+                        d = dr.name
+                        if s_args.quote:
+                            d = _repr(d)
+                        match dr.type:
+                            case stat.S_IFDIR:
+                                icolor = DIR_COLOR
+                                types = "directory"
+                                _countinfo[0] += 1
+                                if s_args.slash:
+                                    d += "/"
+                            case stat.S_IFREG:
+                                icolor = FILE_COLOR
+                                types = "file"
+                                _countinfo[1] += 1
+                            case stat.S_IFLNK:
+                                icolor = LINK_COLOR
+                                types = "link"
+                                _countinfo[1] += 1
+                            case stat.S_IFCHR:
+                                icolor = CHAR_COLOR
+                                types = "character"
+                                _countinfo[1] += 1
+                            case stat.S_IFBLK:
+                                icolor = BLOCK_COLOR
+                                types = "block"
+                                _countinfo[1] += 1
+                            case stat.S_IFIFO:
+                                icolor = FIFO_COLOR
+                                types = "fifo"
+                                _countinfo[1] += 1
+                            case stat.S_IFSOCK:
+                                icolor = SOCK_COLOR
+                                types = "socket"
+                                _countinfo[1] += 1
+                            case _:
+                                icolor = UNKNOWN_COLOR
+                                _countinfo[2] += 1
+                        icolors = icolor if colorful else ""
+                        not_limit = s_args.level == -1 or len(_depthinfo) + 1 < s_args.level
+                        canls = dr.type == stat.S_IFDIR and not_limit
+                        comma = "," if i != maxi_dlist else ""
+                        if s_args.json:
+                            print(f"{dpstr_tab}{{\"type\":\"{types}\",\"name\":\"{repr(d)[1:-1]}\"{",\"contents\":[" if canls else ("}"+comma)}")
+                        elif s_args.xml:
+                            print(f"{dpstr_tab}<{types} name=\"{repr(d)[1:-1]}\">{"" if canls else f"</{types}>"}")
+                        else:
+                            print(f"{dpstr}{ANSI_CHAR_TNODE if i != maxi_dlist else ANSI_CHAR_TEND}{ANSI_CHAR_HLINE * s_args.hline_len} {icolors}{d}{rstcolor}")
+
+                        if canls:
+                            __subcmd_tree_lfunc(s_args, mpy_path_append(path, dr.name), _depthinfo + [i != maxi_dlist], _countinfo)
+                            if s_args.json:
+                                print(f"{dpstr_tab}]}}{comma}")
+                            if s_args.xml:
+                                print(f"{dpstr_tab}</directory>")
+                countinfo = [0, 0, 0]
+                if s_args.json:
+                    print("[")
+                elif s_args.xml:
+                    print(f"<?xml version=\"1.0\" encoding=\"{encoding}\"?>\n<tree>")
+                maxdiri = len(s_args.dir) - 1
+                for i,d in enumerate(s_args.dir):
+                    dn = d
+                    if s_args.slash:
+                        dn += "/"
+                    if s_args.quote:
+                        dn = _repr(dn)
+                    if s_args.json:
+                        print(f"  {{\"type\":\"directory\",\"name\":\"{repr(dn)[1:-1]}\",\"contents\":[")
+                    elif s_args.xml:
+                        print(f"  <directory name=\"{repr(dn)[1:-1]}\">")
+                    else:
+                        print(f"{dircolor}{dn}{rstcolor}")
+                    try:
+                        __subcmd_tree_lfunc(s_args, d, [], countinfo)
+                    except BaseException:
+                        logerr(traceback.format_exc(), "")
+                        continue
+                    if s_args.json:
+                        print(f"  ]}}{"" if i == maxdiri else ","}")
+                    elif s_args.xml:
+                        print(f"  </directory>")
+                if not s_args.noreport:
+                    showunknown = countinfo[2] > 0
+                    if s_args.json:
+                        print(f",\n  {{\"type\":\"report\",\"directories\":{countinfo[0]},\"files\":{countinfo[1]},\"unknown\":{countinfo[2]}}}")
+                    elif s_args.xml:
+                        print(f"  <report>\n    <directories>{countinfo[0]}</directories>\n    <files>{countinfo[1]}</files>\n    <unknown>{countinfo[2]}</unknown>\n  </report>")
+                    else:
+                        print(f"{countinfo[0]} directories, {countinfo[1]} files", end = "")
+                        if showunknown: print(f", {countinfo[2]} unknown", end = "")
+                        print()
+                if s_args.json:
+                    print("]")
+                elif s_args.xml:
+                    print("</tree>")
+
             case _:
                 logerr(f"unknown subcommand: {subcmd}", "")
     def shell():
