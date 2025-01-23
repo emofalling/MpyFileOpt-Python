@@ -1075,10 +1075,15 @@ if __name__ == '__main__':
     ANSI_COLOR_LIGHT_PURPLE = "\x1b[95m"
     ANSI_COLOR_LIGHT_CYAN   = "\x1b[96m"
     ANSI_COLOR_LIGHT_WHITE  = "\x1b[97m"
+    #ANSI_CTRL_CLRLINE       = "\x1b[K"
+    ANSI_CTRL_CLRLINE       = "\x1b[A1\r\x1b[K"
+    ANSI_CTRL_HIDM          = "\x1b[?25l"
+    ANSI_CTRL_SIDM          = "\x1b[?25h"
     ANSI_CHAR_TNODE         = "\u251c"
     ANSI_CHAR_TEND          = "\u2514"
     ANSI_CHAR_VLINE         = "\u2502"
     ANSI_CHAR_HLINE         = "\u2500"
+    ANSI_CHAR_PGLINE        = "\u2501"
     # colors
     ERROR_COLOR = ANSI_COLOR_RED
 
@@ -1092,7 +1097,7 @@ if __name__ == '__main__':
     SUFFIX_LIST_BI_MONO     = SUFFIX_LIST_BI.copy(); SUFFIX_LIST_BI_MONO[0] = " "
     SUFFIX_LIST_SI          =  ["", "k" , "M" , "G" , "T" , "P" , "E" , "Z" , "Y" , "B"]
     SUFFIX_LIST_SI_MONO     = SUFFIX_LIST_SI.copy(); SUFFIX_LIST_SI_MONO[0] = " "
-    def auto_suffix(num: int, base: int, suffix_list: list[str]) -> tuple[int, str]:
+    def auto_suffix(num: int | float, base: int | float, suffix_list: list[str]) -> tuple[int, str]:
         try:
             lf = math.floor(math.log(num, base))
         except ValueError:
@@ -1108,12 +1113,6 @@ if __name__ == '__main__':
             return f'"{reprobj[1:-1]}"'
         else:
             return reprobj
-
-    if os.path.exists("config.json"):
-        with open("config.json", "r") as f:
-            config = json.load(f)
-    else:
-        config = {"BLOCKSIZE": 4096}
 
 
     all_commands = ["shell", "ver", "uname", "uid", "freq", "pwd", "cd", "ls", "tree", "cat", "push", "pull", "rm", "rmdir", "mkdir", "mv", "gc", "stat", "statvfs"]
@@ -1132,6 +1131,7 @@ if __name__ == '__main__':
         except OSError:
             return 80, 25
 
+
     main_parser = argparse.ArgumentParser(description = "Connect to MicroPython device and do something with subcommands.", epilog = "See README.md for more information.", add_help = True)
     main_parser.add_argument("port", help="serial port")
     main_parser.add_argument("-B" , "--baudrate"          , type=int,                                   default=115200, help="serial baudrate. default 115200")
@@ -1141,6 +1141,9 @@ if __name__ == '__main__':
     main_parser.add_argument("-Tw", "--write-timeout"     , type=float,                                 default=1,      help="serial write timeout. if 0, no timeout. default 0")
     main_parser.add_argument("-Tb", "--inter-byte-timeout", type=float,                                 default=0.1,    help="serial inter-byte timeout. default 0.1")
     
+    main_parser.add_argument("-pbmaxw", "--progressbar-maxwidth", type=int, default=50, help="progressbar max width. unit is chars. it must be > 0. default 50.")
+    main_parser.add_argument("-pbminw", "--progressbar-minwidth", type=int, default=5, help="progressbar min width. unit is chars. it must be > 0. default 5.")
+
     main_parser.add_argument("-v" , "--verbose"           , action="store_true", help="output debug info")
     main_parser.add_argument("-nc" , "--no-colorful"          , action="store_false", help="make output not colorful. if terminal not support ANSI color escape sequence, recommended select this option")
     main_parser.add_argument("--version", action="version", version=f"{__version__}")
@@ -1214,6 +1217,11 @@ if __name__ == '__main__':
     subcmd_tree_parser.add_argument("dir", nargs="*", default=["."], help="dir to list. if not specified, list .")
     subcmd_tree_parser.add_argument("-v", "--verbose", action="store_true", help="output debug info")
     # push
+    subcmd_push_parser = argparse.ArgumentParser("push", description="Push items to device", epilog="See README.md for more information.", add_help = True)
+    subcmd_push_parser.add_argument("-b", "--block-size", type=int, default=4096, help="block size to push. A larger block size can bring faster transmission speed, but it need larger memory for micropython device. default 4096.")
+    subcmd_push_parser.add_argument("dst", help="destination path on device to push items")
+    subcmd_push_parser.add_argument("src", nargs="+", help="Items to push on localhost. It can be files or directories")
+    subcmd_push_parser.add_argument("-v", "--verbose", action="store_true", help="output debug info")
 
     maincmd_argv = []
     subcmd_argv_list = []
@@ -1232,7 +1240,12 @@ if __name__ == '__main__':
     print(subcmd_argv_list)
     args = main_parser.parse_args(maincmd_argv)
     colorful = args.no_colorful
-    rstcolor = ANSI_RESET_ALL if colorful else ""
+    progressbar_maxwidth = args.progressbar_maxwidth
+    progressbar_minwidth = args.progressbar_minwidth
+    if progressbar_maxwidth <= 0:
+        logerr("progressbar-maxwidth must be > 0")
+    if progressbar_minwidth <= 0:
+        logerr("progressbar-minwidth must be > 0")
     try:
         opt = MpyFileOpt(
             args.port,
@@ -1249,6 +1262,7 @@ if __name__ == '__main__':
         logerr(traceback.format_exc(), "")
         exit(1)
     shell_workdir = ""
+    rstcolor = ANSI_RESET_ALL if colorful else ""
     DIR_COLOR   = ANSI_COLOR_GREEN
     FILE_COLOR  = ""
     LINK_COLOR  = ANSI_COLOR_BLUE
@@ -1267,6 +1281,56 @@ if __name__ == '__main__':
     sockcolor = SOCK_COLOR if colorful else ""
     unknowncolor = UNKNOWN_COLOR if colorful else ""
     typecolor = TYPE_COLOR if colorful else ""
+    LOADED_COLOR = ANSI_COLOR_LIGHT_RED
+    WLLOAD_COLOR = ANSI_COLOR_LIGHT_BLACK
+    FINISH_COLOR = ANSI_COLOR_LIGHT_GREEN
+    TINFO_COLOR = ANSI_COLOR_GREEN
+    SPEED_COLOR = ANSI_COLOR_RED
+    ETA_COLOR = ANSI_COLOR_LIGHT_BLUE
+    loaded_color = LOADED_COLOR if colorful else ""
+    wlload_color = WLLOAD_COLOR if colorful else ""
+    finish_color = FINISH_COLOR if colorful else ""
+    tinfo_color = TINFO_COLOR if colorful else ""
+    speed_color = SPEED_COLOR if colorful else ""
+    eta_color = ETA_COLOR if colorful else ""
+    def progress_bar(total: int, cur: int, speed: int = 0, max_width: int = 50, min_width = 10) -> str:
+        # color:
+        #[" " max=4 min=1]["\u2501" max=$max_width min=1 rules=[finished:green, running:[loaded:lightred, other:gray]]] XX/XX XB XX.X XB/s eta XX:XX
+        # example:    ---------------------------------------- 11.0/12.6 MB 27.1 KB/s eta 0:01:00
+        ter_w, _ = get_term_size()
+        if total == 0:
+            prog = 100
+        else:
+            prog = int(cur / total * 100)
+        eta = math.ceil((total - cur) / speed) if speed != 0 else 0
+        if speed == 0:
+            speeds = "?"
+            etas = "--:--:--"
+        else:
+            etads = datetime.timedelta(seconds=eta).seconds
+            etas = f"{int(etads/3600)}:{int(etads/60)%60:02}:{etads%60:02}"
+            div_s, suffix_s = auto_suffix(speed, BASE_BI, SUFFIX_LIST_BI)
+            speeds = f"{speed / div_s:.2f} {suffix_s}B/s"
+        div_t, suffix_t = auto_suffix(total, BASE_BI, SUFFIX_LIST_BI)
+        pstr         = f" {tinfo_color}{cur / div_t:.2f}/{total / div_t:.2f} {suffix_t}B{rstcolor} {speed_color}{speeds}{rstcolor} eta {eta_color}{etas}{rstcolor} "
+        pstr_nocolor = f" {     ""    }{cur / div_t:.2f}/{total / div_t:.2f} {suffix_t}B{   ""   } {     ""    }{speeds}{   ""   } eta {    ""   }{etas}{   ""   } "
+        tabs = "  "
+        if colorful:
+            pgslen_raw = ter_w - len(pstr_nocolor) - len(tabs)
+        else:
+            pgslen_raw = ter_w - len(pstr_nocolor) - len(tabs) - 2
+        pgslen = min(max(pgslen_raw, progressbar_minwidth), progressbar_maxwidth)
+        if colorful:
+            if cur == total:
+                pgss = f"{finish_color}{ANSI_CHAR_PGLINE * pgslen}{rstcolor}"
+            else:
+                pgss = f"{loaded_color}{ANSI_CHAR_PGLINE * int(pgslen * prog / 100)}{wlload_color}{ANSI_CHAR_PGLINE * int(math.ceil(pgslen * (100 - prog) / 100))}{rstcolor}"
+        else:
+            if cur == total:
+                pgss = f"|{ANSI_CHAR_PGLINE * pgslen}|"
+            else:
+                pgss = f"|{ANSI_CHAR_PGLINE * int(pgslen * prog / 100)}{" " * int(math.ceil(pgslen * (100 - prog) / 100))}|"
+        print(ANSI_CTRL_CLRLINE+tabs+pgss+pstr)
     def mpy_path_append(p0: str, p1: str):
         if p0[-1] == "/":
             return p0 + p1
@@ -1670,7 +1734,17 @@ if __name__ == '__main__':
                     print("]")
                 elif s_args.xml:
                     print("</tree>")
-
+            case "push":
+                last_i = 0
+                total = 4096*128
+                print(ANSI_CTRL_HIDM)
+                for i in range(0, total+128, 4096):
+                    progress_bar(total, i, (i - last_i) / (0.1))
+                    time.sleep(0.1)
+                    last_i = i
+                print()
+                progress_bar(0, 0, 0)
+                print(ANSI_CTRL_SIDM)
             case _:
                 logerr(f"unknown subcommand: {subcmd}", "")
     def shell():
