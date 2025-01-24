@@ -22,7 +22,7 @@ from collections import namedtuple
 __version__ = '1.0'
 
 micropython_code_file = f"{os.path.dirname(__file__)}/on_micropython/src.py"
-encoding = "ascii"
+encoding = "utf-8"
 # Serial Terminal Codes
 TER_INTP = b"\x03" # Terminal_Interrupt
 TER_NEWL = b"\r\n" # Terminal_NewLine
@@ -140,7 +140,7 @@ class MpyFileOpt:
         self._connect()
     def _dev_raise(self, funcname: str, errstr: bytes) -> None:
         """If the error throwed from micropython device, call it to throw error"""
-        raise MpyFileOptError(f"On {funcname}(): In Micropython Device: \n    {errstr.decode(encoding)}")
+        raise MpyFileOptError(f"On {funcname}(): In Micropython Device: \n    {errstr.decode(encoding, "ignore")}")
     def _dev_reset(self) -> None:
         """reset device"""
         self.ser.dtr = False
@@ -305,11 +305,11 @@ class MpyFileOpt:
         if ret == SUC:
             if verbose: print("[3/4] Success, Read uname...")
             result = uname_result(
-                self._com_read_string().decode(encoding) if isstr else self._com_read_string(),
-                self._com_read_string().decode(encoding) if isstr else self._com_read_string(),
-                self._com_read_string().decode(encoding) if isstr else self._com_read_string(),
-                self._com_read_string().decode(encoding) if isstr else self._com_read_string(),
-                self._com_read_string().decode(encoding) if isstr else self._com_read_string()
+                self._com_read_string().decode(encoding, "ignore") if isstr else self._com_read_string(),
+                self._com_read_string().decode(encoding, "ignore") if isstr else self._com_read_string(),
+                self._com_read_string().decode(encoding, "ignore") if isstr else self._com_read_string(),
+                self._com_read_string().decode(encoding, "ignore") if isstr else self._com_read_string(),
+                self._com_read_string().decode(encoding, "ignore") if isstr else self._com_read_string()
             )
             if verbose: print("[4/4] Done.")
             return result
@@ -415,7 +415,7 @@ class MpyFileOpt:
             if verbose: print("[3/4] Success, Read path string...")
             wd = self._com_read_string()
             if verbose: print("[4/4] Done.")
-            return wd.decode(encoding) if isstr else wd
+            return wd.decode(encoding, "ignore") if isstr else wd
         elif ret == b"":
             raise TimeoutError("Read time out.")
         else:
@@ -493,7 +493,7 @@ class MpyFileOpt:
             length = self._com_read_uint()
             for _ in range(length):
                 dir = self._com_read_string()
-                result.append(dir.decode(encoding) if isstr else dir)
+                result.append(dir.decode(encoding, "ignore") if isstr else dir)
             if verbose: print("[5/5] Done.")
             return result
         elif ret == b"":
@@ -541,7 +541,7 @@ class MpyFileOpt:
                 name  = self._com_read_string()
                 type  = self._com_read_uint()
                 inode = self._com_read_uint()
-                result.append(ilistdir_item(name.decode(encoding) if isstr else name, type, inode))
+                result.append(ilistdir_item(name.decode(encoding, "ignore") if isstr else name, type, inode))
             if verbose: print("[5/5] Done.")
             return result
         elif ret == b"":
@@ -1115,7 +1115,7 @@ if __name__ == '__main__':
             return reprobj
 
 
-    all_commands = ["shell", "ver", "uname", "uid", "freq", "pwd", "cd", "ls", "tree", "cat", "push", "pull", "rm", "rmdir", "mkdir", "mv", "gc", "stat", "statvfs"]
+    all_commands = ["shell", "ver", "uname", "uid", "freq", "pwd", "cd", "ls", "tree", "write", "push", "read", "pull", "cat", "rm", "rmdir", "mkdir", "mv", "gc", "stat", "statvfs"]
     argv = sys.argv[1:]
     colorful = False
     def logerr(msg, prefix = "Error: "):
@@ -1130,6 +1130,18 @@ if __name__ == '__main__':
             return os.get_terminal_size()
         except OSError:
             return 80, 25
+    def inputcheck(msg: str, ist: str = "(Y/n)", default: Any = False) -> bool:
+        while True:
+            try:
+                ans = input(msg + ist + ": ")
+                if ans == "":
+                    return default
+                if ans.lower() in ["y", "yes"]:
+                    return True
+                if ans.lower() in ["n", "no"]:
+                    return False
+            except:
+                return default
 
 
     main_parser = argparse.ArgumentParser(description = "Connect to MicroPython device and do something with subcommands.", epilog = "See README.md for more information.", add_help = True)
@@ -1216,11 +1228,24 @@ if __name__ == '__main__':
     subcmd_tree_outfmt_parser_group.add_argument("-X", "--xml", action="store_true", help="output xml format")
     subcmd_tree_parser.add_argument("dir", nargs="*", default=["."], help="dir to list. if not specified, list .")
     subcmd_tree_parser.add_argument("-v", "--verbose", action="store_true", help="output debug info")
+    # write
+    subcmd_write_parser = argparse.ArgumentParser("write", description="Write file to file on device", epilog="See README.md for more information.", add_help = True)
+    subcmd_write_parser.add_argument("-b", "--blocksize", type=int, default=4096, help="block size to write. A larger block size can bring faster transmission speed, but it need larger memory for micropython device. default 4096.")
+    subcmd_write_parser.add_argument("dst", type=str, help="destination file on device to write")
+    subcmd_write_parser.add_argument("src", type=str, help="source file on localhost to write")
+    subcmd_write_parser.add_argument("-q", "--quiet", action="store_true", help="do not output progress bar and report.")
+    subcmd_write_parser.add_argument("--noreport", action="store_true", help="do not output report")
+    subcmd_write_parser.add_argument("-w", "--warning", action="store_true", help="If the file exists, user can choose whether to overwrite it. If not specified, always overwrite it.")
+    subcmd_write_parser.add_argument("-v", "--verbose", action="store_true", help="output debug info")
     # push
     subcmd_push_parser = argparse.ArgumentParser("push", description="Push items to device", epilog="See README.md for more information.", add_help = True)
-    subcmd_push_parser.add_argument("-b", "--block-size", type=int, default=4096, help="block size to push. A larger block size can bring faster transmission speed, but it need larger memory for micropython device. default 4096.")
+    subcmd_push_parser.add_argument("-b", "--blocksize", type=int, default=4096, help="block size to push. A larger block size can bring faster transmission speed, but it need larger memory for micropython device. default 4096.")
+    subcmd_push_parser.add_argument("-nr", "--no-recursive", action="store_true", help="when push the directory, not push recursively subitems")
     subcmd_push_parser.add_argument("dst", help="destination path on device to push items")
     subcmd_push_parser.add_argument("src", nargs="+", help="Items to push on localhost. It can be files or directories")
+    subcmd_push_parser.add_argument("-q", "--quiet", action="store_true", help="do not output progress bar and report.")
+    subcmd_push_parser.add_argument("--noreport", action="store_true", help="do not output report")
+    subcmd_push_parser.add_argument("-w", "--warning", action="store_true", help="If the file exists, user can choose whether to overwrite it. If not specified, always overwrite it.")
     subcmd_push_parser.add_argument("-v", "--verbose", action="store_true", help="output debug info")
 
     maincmd_argv = []
@@ -1293,7 +1318,7 @@ if __name__ == '__main__':
     tinfo_color = TINFO_COLOR if colorful else ""
     speed_color = SPEED_COLOR if colorful else ""
     eta_color = ETA_COLOR if colorful else ""
-    def progress_bar(total: int, cur: int, speed: int = 0, max_width: int = 50, min_width = 10) -> str:
+    def progress_bar(total: int, cur: int, speed: int | float = 0, max_width: int = 50, min_width = 10) -> str:
         # color:
         #[" " max=4 min=1]["\u2501" max=$max_width min=1 rules=[finished:green, running:[loaded:lightred, other:gray]]] XX/XX XB XX.X XB/s eta XX:XX
         # example:    ---------------------------------------- 11.0/12.6 MB 27.1 KB/s eta 0:01:00
@@ -1336,8 +1361,84 @@ if __name__ == '__main__':
             return p0 + p1
         else:
             return p0 + "/" + p1
+    last_cur = 0
+    last_time = 0
+    speed_ctl = []
+    def progress_bar_callback(total: int, cur: int):
+        global last_cur, last_time
+        cur_time = time.perf_counter()
+        speed = (cur - last_cur) / (cur_time - last_time)
+        if cur != 0:
+            speed_ctl.append(speed)
+        progress_bar(total, cur, speed)
+        last_cur = cur
+        last_time = cur_time
+    class HideCursor:
+        def __init__(self, printline = True, clearctinfo = True):
+            self.printline = printline
+            self.clearctinfo = clearctinfo
+        def __enter__(self):
+            global last_cur, last_time, speed_ctl
+            if self.printline: print()
+            if self.clearctinfo:
+                last_cur = 0
+                last_time = 0
+                speed_ctl = []
+            print(ANSI_CTRL_HIDM, end="")
+        def __exit__(self, exc_type, exc_value, traceback):
+            print(ANSI_CTRL_SIDM, end="")
+    def _subcmd_write_lfunc(s_args, dst, src):
+        if not os.path.isfile(src):
+            logerr(f"file not found: {src}", "")
+            return
+        if s_args.verbose: print("Checking destination file type")
+        ov = False
+        try:
+            st = opt.stat(dst, verbose = s_args.verbose)
+        except MpyFileOptError:
+            # path not exists
+            if s_args.verbose: print("Destination file not found, will create it")
+        except:
+            # error
+            logerr(traceback.format_exc(), "")
+            return
+        else:
+            # path exists
+            if s_args.verbose: print("Destination file found, checking type")
+            if stat.S_ISREG(st.st_mode):
+                if s_args.verbose: print("Destination file is file, success")
+                ov = True
+            else:
+                logerr(f"destination is not a file: {dst}", "")
+                return
+        if ov and s_args.warning:
+            chk = inputcheck("Destination file exists, overwrite it?")
+            if not chk:
+                return
+        if s_args.verbose: print("Writing file")
+        fsize = os.path.getsize(src)
+        def __callback_progressbar(total: int, cur: int):
+            if not (s_args.quiet or s_args.verbose):
+                progress_bar_callback(total, cur)
+        start_time = time.perf_counter()
+        try:
+            with HideCursor():
+                with open(src, "rb") as f:
+                    opt.upload(dst, f, fsize, s_args.blocksize, __callback_progressbar, verbose = s_args.verbose)
+        except BaseException:
+            logerr(traceback.format_exc(), "")
+            return
+        drtime = time.perf_counter() - start_time
+        # avspeed = fsize / drtime
+        if not (s_args.noreport or s_args.quiet):
+            try:
+                avspeed = sum(speed_ctl) / len(speed_ctl)
+            except ZeroDivisionError:
+                avspeed = 0
+            div_a, suf_a = auto_suffix(avspeed, BASE_BI, SUFFIX_LIST_BI)
+            print(f"Wrote in {drtime:.2f} seconds, average speed: {avspeed / div_a:.2f} {suf_a}B/s")
     def match_subcmd(subcmd_argv: list[str]):
-        global shell_workdir
+        global shell_workdir, last_cur, last_time, speed_ctl
         subcmd = subcmd_argv[0]
         match subcmd:
             case "shell":
@@ -1403,7 +1504,7 @@ if __name__ == '__main__':
                 except BaseException:
                     logerr(traceback.format_exc(), "")
                     return
-                uid_s = binascii.hexlify(uid).decode("ascii")
+                uid_s = binascii.hexlify(uid).decode("ascii", "ignore")
                 print(uid_s)
             case "freq":
                 s_args = subcmd_parse_args(subcmd_freq_parser, subcmd_argv)
@@ -1416,7 +1517,7 @@ if __name__ == '__main__':
                 if s_args.raw:
                     print(freq)
                 else:
-                    div, sif = auto_suffix(freq)
+                    div, sif = auto_suffix(freq, BASE_SI, SUFFIX_LIST_SI)
                     print(f"{freq / div} {sif}Hz")
             case "pwd":
                 s_args = subcmd_parse_args(subcmd_pwd_parser, subcmd_argv)
@@ -1734,17 +1835,54 @@ if __name__ == '__main__':
                     print("]")
                 elif s_args.xml:
                     print("</tree>")
+            case "write":
+                s_args = subcmd_parse_args(subcmd_write_parser, subcmd_argv)
+                if not s_args: return
+                if s_args.blocksize <= 0:
+                    logerr("block-size must be > 0", "")
+                    return
+                _subcmd_write_lfunc(s_args, s_args.dst, s_args.src)
             case "push":
-                last_i = 0
-                total = 4096*128
-                print(ANSI_CTRL_HIDM)
-                for i in range(0, total+128, 4096):
-                    progress_bar(total, i, (i - last_i) / (0.1))
-                    time.sleep(0.1)
-                    last_i = i
-                print()
-                progress_bar(0, 0, 0)
-                print(ANSI_CTRL_SIDM)
+                s_args = subcmd_parse_args(subcmd_push_parser, subcmd_argv)
+                if not s_args: return
+                if s_args.blocksize <= 0:
+                    logerr("block-size must be > 0", "")
+                    return
+                def __subcmd_push_lfunc(s_args, dst: str, src: list[str], _countinfo: list[int]):
+                    for s in src:
+                        s_stat = os.stat(s)
+                        if stat.S_ISREG(s_stat.st_mode):
+                            _countinfo[1] += 1
+                            fp = mpy_path_append(dst, os.path.basename(s))
+                            print("Write file:", fp)
+                            _subcmd_write_lfunc(s_args, mpy_path_append(dst, os.path.basename(s)), s)
+                        elif stat.S_ISDIR(s_stat.st_mode):
+                            _countinfo[0] += 1
+                            if not s_args.no_recursive:
+                                try:
+                                    dp = mpy_path_append(dst, os.path.basename(s))
+                                    print("Create directory:", dp)
+                                    opt.mkdir(dp, verbose = s_args.verbose)
+                                except BaseException:
+                                    logerr(traceback.format_exc(), "")
+                                try:
+                                    dlist = os.listdir(s)
+                                except BaseException:
+                                    logerr(traceback.format_exc(), "")
+                                    continue
+                                __subcmd_push_lfunc(s_args, mpy_path_append(dst, os.path.basename(s)), [os.path.join(s, d) for d in dlist], _countinfo)
+                        else:
+                            _countinfo[2] += 1
+                            logerr(f"unknown file type: {s}", "")
+                countinfo = [0, 0, 0]
+                __subcmd_push_lfunc(s_args, s_args.dst, s_args.src, countinfo)
+                if not s_args.noreport:
+                    showunknown = countinfo[2] > 0
+                    print(f"Total report: Wrote {countinfo[0]} directories, {countinfo[1]} files", end = "")
+                    if showunknown: print(f", {countinfo[2]} unknown", end = "")
+                    print()
+
+                    
             case _:
                 logerr(f"unknown subcommand: {subcmd}", "")
     def shell():

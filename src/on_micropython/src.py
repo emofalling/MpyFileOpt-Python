@@ -10,7 +10,6 @@ BE=b"\xff"
 ver=(1,0)
 speed=1024
 import machine,os,struct,gc
-from mpython import *
 sp=struct.pack
 sup=struct.unpack
 from flashbdev import bdev
@@ -37,8 +36,7 @@ def err(e):uw(E);sstr(e.__class__.__name__+": "+str(e))
 uw(A)
 while True:
     code=ur(1)
-    if code is None:pass
-
+    if code is None:machine.idle()
     elif code==b"\x00":
         try:uw(S);suint(ver[0]);suint(ver[1])
         except Exception as e:err(e)
@@ -57,7 +55,6 @@ while True:
         try:f=machine.freq()
         except Exception as e:err(e)
         else:uw(S);suint(f)
-    
     elif code==b"\x10":
         try:cwd = os.getcwd()
         except Exception as e:err(e)
@@ -78,7 +75,6 @@ while True:
         else:
             uw(S);suint(len(r))
             for a in r:sstr(a[0]);suint(a[1]);suint(a[2])
-    
     elif code==b"\x20":
         p=rstr();fs=ruint();bs=ruint()
         try:
@@ -132,7 +128,6 @@ while True:
         try:os.rename(rstr(),rstr())
         except Exception as e:err(e)
         else:uw(S)
-
     elif code==b"\x30":
         try:r=os.stat(rstr())
         except Exception as e:err(e)
@@ -145,7 +140,6 @@ while True:
         else:
             uw(S)
             for i in r:sint(i)
-    
     elif code==b"\x40":
         cl=rbool()
         try:
@@ -153,7 +147,6 @@ while True:
             f=gc.mem_free();a=gc.mem_alloc()
         except Exception as e:err(e)
         else:uw(S);sint(a);sint(f)
-    
     elif code==b"\xff":
         try:machine.reset()
         except Exception as e:err(e)
