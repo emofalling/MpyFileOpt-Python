@@ -435,3 +435,54 @@ usage: tree [-acdfghilnpqrstuvxACDFJQNSUX] [-L level [-R]] [-H [-]baseHREF]
   --version     打印版本并退出。
   --help        打印用法和此帮助消息并退出。
   --            选项处理终止符。
+
+
+Usage: cat [OPTION]... [FILE]...
+Concatenate FILE(s) to standard output.
+
+With no FILE, or when FILE is -, read standard input.
+
+  -A, --show-all           equivalent to -vET
+  -b, --number-nonblank    number nonempty output lines, overrides -n
+  -e                       equivalent to -vE
+  -E, --show-ends          display $ at end of each line
+  -n, --number             number all output lines
+  -s, --squeeze-blank      suppress repeated empty output lines
+  -t                       equivalent to -vT
+  -T, --show-tabs          display TAB characters as ^I
+  -u                       (ignored)
+  -v, --show-nonprinting   use ^ and M- notation, except for LFD and TAB
+      --help        display this help and exit
+      --version     output version information and exit
+
+Examples:
+  cat f - g  Output f's contents, then standard input, then g's contents.
+  cat        Copy standard input to standard output.
+
+GNU coreutils online help: <https://www.gnu.org/software/coreutils/>
+Report any translation bugs to <https://translationproject.org/team/>
+Full documentation <https://www.gnu.org/software/coreutils/cat>
+or available locally via: info '(coreutils) cat invocation'
+
+
+Usage: cat [OPTION]... [FILE]...
+Concatenate FILE(s) to standard output.
+
+在没有FILE的情况下，或者当FILE为-时，读取标准输入。
+
+  -A, --show-all           相当于-vET
+  -b, --number-nonblank    非空输出行数，优先于-n
+  -e                       相当于-vE
+  -E, --show-ends          在每行末尾显示$
+  -n, --number             对所有输出行进行行号标注
+  -s, --squeeze-blank      抑制重复的空输出行
+  -t                       相当于-vT
+  -T, --show-tabs          将制表符显示为^I
+  -u                       （忽略）
+  -v, --show-nonprinting   使用^和M-表示，LFD和TAB除外
+      --help        显示此帮助并退出
+      --version     输出版本信息并退出
+
+Examples:
+  cat f - g  输出f的内容，然后是标准输入，然后是g的内容。
+  cat        将标准输入复制到标准输出。

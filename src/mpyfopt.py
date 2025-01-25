@@ -1044,19 +1044,15 @@ class MpyFileOpt:
 
 
 if __name__ == '__main__':
-    # info
     import stat
     import datetime
-    # errors
     import traceback
-    # command line
     import argparse
     import shlex
-    # hex & calculation
     import binascii
     import math
-    # config file
     import json
+    from io import BytesIO
     # terminal codes
     ANSI_RESET_ALL          = "\x1b[0m"
     ANSI_COLOR_BLACK        = "\x1b[30m"
@@ -1115,7 +1111,7 @@ if __name__ == '__main__':
             return reprobj
 
 
-    all_commands = ["shell", "ver", "uname", "uid", "freq", "pwd", "cd", "ls", "tree", "write", "push", "read", "pull", "cat", "rm", "rmdir", "mkdir", "mv", "gc", "stat", "statvfs"]
+    all_commands = ["shell", "ver", "uname", "uid", "freq", "pwd", "cd", "ls", "tree", "write", "push", "read", "cat", "pull", "rm", "rmdir", "mkdir", "mv", "gc", "stat", "statvfs"]
     argv = sys.argv[1:]
     colorful = False
     def logerr(msg, prefix = "Error: "):
@@ -1188,10 +1184,12 @@ if __name__ == '__main__':
     subcmd_freq_parser.add_argument("-v", "--verbose", action="store_true", help="output debug info")
     # pwd
     subcmd_pwd_parser = argparse.ArgumentParser("pwd", description="Print device's current working directory", epilog="See README.md for more information.", add_help = True)
+    subcmd_pwd_parser.add_argument("-l", "--local", action="store_true", help="output localhost's current working directory")
     subcmd_pwd_parser.add_argument("-v", "--verbose", action="store_true", help="output debug info")
     # cd
     subcmd_cd_parser = argparse.ArgumentParser("cd", description="Change device's current working directory", epilog="See README.md for more information.", add_help = True)
     subcmd_cd_parser.add_argument("dir", nargs="?", default="/", help="dir to change to. if not specified, change to /")
+    subcmd_cd_parser.add_argument("-l", "--local", action="store_true", help="output localhost's current working directory")
     subcmd_cd_parser.add_argument("-v", "--verbose", action="store_true", help="output debug info")
     # ls
     subcmd_ls_parser = argparse.ArgumentParser("ls", description="List device's files and directories", epilog="See README.md for more information.", add_help = True)
@@ -1232,21 +1230,40 @@ if __name__ == '__main__':
     subcmd_write_parser = argparse.ArgumentParser("write", description="Write file to file on device", epilog="See README.md for more information.", add_help = True)
     subcmd_write_parser.add_argument("-b", "--blocksize", type=int, default=4096, help="block size to write. A larger block size can bring faster transmission speed, but it need larger memory for micropython device. default 4096.")
     subcmd_write_parser.add_argument("dst", type=str, help="destination file on device to write")
-    subcmd_write_parser.add_argument("src", type=str, help="source file on localhost to write")
+    subcmd_write_parser.add_argument("src", type=str, help="source file on localhost to transmit")
     subcmd_write_parser.add_argument("-q", "--quiet", action="store_true", help="do not output progress bar and report.")
     subcmd_write_parser.add_argument("--noreport", action="store_true", help="do not output report")
-    subcmd_write_parser.add_argument("-w", "--warning", action="store_true", help="If the file exists, user can choose whether to overwrite it. If not specified, always overwrite it.")
+    subcmd_write_parser.add_argument("-w", "--warning", action="store_true", help="If the dst file exists, user can choose whether to overwrite it. If not specified, always overwrite it.")
     subcmd_write_parser.add_argument("-v", "--verbose", action="store_true", help="output debug info")
     # push
     subcmd_push_parser = argparse.ArgumentParser("push", description="Push items to device", epilog="See README.md for more information.", add_help = True)
     subcmd_push_parser.add_argument("-b", "--blocksize", type=int, default=4096, help="block size to push. A larger block size can bring faster transmission speed, but it need larger memory for micropython device. default 4096.")
     subcmd_push_parser.add_argument("-nr", "--no-recursive", action="store_true", help="when push the directory, not push recursively subitems")
-    subcmd_push_parser.add_argument("dst", help="destination path on device to push items")
+    subcmd_push_parser.add_argument("dst", help="destination path on device to receive items")
     subcmd_push_parser.add_argument("src", nargs="+", help="Items to push on localhost. It can be files or directories")
     subcmd_push_parser.add_argument("-q", "--quiet", action="store_true", help="do not output progress bar and report.")
     subcmd_push_parser.add_argument("--noreport", action="store_true", help="do not output report")
-    subcmd_push_parser.add_argument("-w", "--warning", action="store_true", help="If the file exists, user can choose whether to overwrite it. If not specified, always overwrite it.")
+    subcmd_push_parser.add_argument("-w", "--warning", action="store_true", help="If the dst file exists, user can choose whether to overwrite it. If not specified, always overwrite it.")
     subcmd_push_parser.add_argument("-v", "--verbose", action="store_true", help="output debug info")
+    # read
+    subcmd_read_parser = argparse.ArgumentParser("read", description="Read file from device", epilog="See README.md for more information.", add_help = True)
+    subcmd_read_parser.add_argument("-b", "--blocksize", type=int, default=4096, help="block size to write. A larger block size can bring faster transmission speed, but it need larger memory for micropython device. default 4096.")
+    subcmd_read_parser.add_argument("dst", type=str, help="destination file on localhost to receive")
+    subcmd_read_parser.add_argument("src", type=str, help="source file on device to read")
+    subcmd_read_parser.add_argument("-q", "--quiet", action="store_true", help="do not output progress bar and report.")
+    subcmd_read_parser.add_argument("--noreport", action="store_true", help="do not output report")
+    subcmd_read_parser.add_argument("-w", "--warning", action="store_true", help="If the dst file exists, user can choose whether to overwrite it. If not specified, always overwrite it.")
+    subcmd_read_parser.add_argument("-v", "--verbose", action="store_true", help="output debug info")
+    # cat
+    subcmd_cat_parser = argparse.ArgumentParser("cat", description="Print file content", epilog="See README.md for more information.", add_help = True)
+    subcmd_cat_parser.add_argument("-b", "--blocksize", type=int, default=4096, help="block size to write. A larger block size can bring faster transmission speed, but it need larger memory for micropython device. default 4096.")
+    subcmd_cat_parser.add_argument("src", nargs="+", help="source files on device to print")
+    subcmd_cat_parser.add_argument("-n", "--number", action="store_true", help="number all output lines")
+    subcmd_cat_parser.add_argument("-s", "--squeeze-blank", action="store_true", help="suppress repeated empty output lines")
+    subcmd_cat_parser.add_argument("-q", "--quiet", action="store_true", help="do not output progress bar and report.")
+    subcmd_cat_parser.add_argument("-w", "--warning", action="store_true", help="If the dst file exists, user can choose whether to overwrite it. If not specified, always overwrite it.")
+    subcmd_cat_parser.add_argument("-v", "--verbose", action="store_true", help="output debug info")
+
 
     maincmd_argv = []
     subcmd_argv_list = []
@@ -1318,6 +1335,8 @@ if __name__ == '__main__':
     tinfo_color = TINFO_COLOR if colorful else ""
     speed_color = SPEED_COLOR if colorful else ""
     eta_color = ETA_COLOR if colorful else ""
+    LINENUM_COLOR = ANSI_COLOR_LIGHT_BLACK
+    linenum_color = LINENUM_COLOR if colorful else ""
     def progress_bar(total: int, cur: int, speed: int | float = 0, max_width: int = 50, min_width = 10) -> str:
         # color:
         #[" " max=4 min=1]["\u2501" max=$max_width min=1 rules=[finished:green, running:[loaded:lightred, other:gray]]] XX/XX XB XX.X XB/s eta XX:XX
@@ -1389,7 +1408,7 @@ if __name__ == '__main__':
             print(ANSI_CTRL_SIDM, end="")
     def _subcmd_write_lfunc(s_args, dst, src):
         if not os.path.isfile(src):
-            logerr(f"file not found: {src}", "")
+            logerr(f"Source file not found: {src}", "")
             return
         if s_args.verbose: print("Checking destination file type")
         ov = False
@@ -1437,6 +1456,65 @@ if __name__ == '__main__':
                 avspeed = 0
             div_a, suf_a = auto_suffix(avspeed, BASE_BI, SUFFIX_LIST_BI)
             print(f"Wrote in {drtime:.2f} seconds, average speed: {avspeed / div_a:.2f} {suf_a}B/s")
+    def _subcmd_read_lfunc(s_args, dst: str | BytesIO, src, enable_report = True):
+        custom_io = False
+        if isinstance(dst, str):
+            # path-string, else custom IO
+            if os.path.exists(dst):
+                if os.path.isfile(dst):
+                    if s_args.warning:
+                        chk = inputcheck("Destination file exists, overwrite it?")
+                        if not chk:
+                            return 1
+                else:
+                    logerr(f"destination isn't a file: {dst}", "")
+                    return 1
+        else:
+            custom_io = True
+        try:
+            st = opt.stat(src, verbose = s_args.verbose)
+        except MpyFileOptError:
+            # path not exists
+            logerr(f"Source file {src} not found")
+            return 1
+        except:
+            # error
+            logerr(traceback.format_exc(), "")
+            return 1
+        else:
+            # path exists
+            if s_args.verbose: print("Source file found, checking type")
+            if not stat.S_ISREG(st.st_mode):
+                logerr(f"Source is not a file: {src}", "")
+                return 1
+        if s_args.verbose: print("Reading file")
+        def __callback_progressbar(total: int, cur: int):
+            if not (s_args.quiet or s_args.verbose):
+                progress_bar_callback(total, cur)
+        start_time = time.perf_counter()
+        try:
+            with HideCursor():
+                if custom_io:
+                    opt.download(src, dst, s_args.blocksize, __callback_progressbar, verbose = s_args.verbose)
+                else:
+                    with open(dst, "wb") as f:
+                        opt.download(src, f, s_args.blocksize, __callback_progressbar, verbose = s_args.verbose)
+        except BaseException:
+            logerr(traceback.format_exc(), "")
+            return 1
+        drtime = time.perf_counter() - start_time
+        # avspeed = fsize / drtime
+        if enable_report:
+            if not (s_args.noreport or s_args.quiet):
+                try:
+                    avspeed = sum(speed_ctl) / len(speed_ctl)
+                except ZeroDivisionError:
+                    avspeed = 0
+                div_a, suf_a = auto_suffix(avspeed, BASE_BI, SUFFIX_LIST_BI)
+                print(f"Read in {drtime:.2f} seconds, average speed: {avspeed / div_a:.2f} {suf_a}B/s")
+
+        
+        if s_args.verbose: print("Reading file")
     def match_subcmd(subcmd_argv: list[str]):
         global shell_workdir, last_cur, last_time, speed_ctl
         subcmd = subcmd_argv[0]
@@ -1522,21 +1600,35 @@ if __name__ == '__main__':
             case "pwd":
                 s_args = subcmd_parse_args(subcmd_pwd_parser, subcmd_argv)
                 if not s_args: return
-                try:
-                    path = opt.getcwd()
-                except BaseException:
-                    logerr(traceback.format_exc(), "")
-                    return
+                if s_args.local:
+                    try:
+                        path = os.getcwd()
+                    except BaseException:
+                        logerr(traceback.format_exc(), "")
+                        return
+                else:
+                    try:
+                        path = opt.getcwd()
+                    except BaseException:
+                        logerr(traceback.format_exc(), "")
+                        return
+                    shell_workdir = path
                 print(path)
-                shell_workdir = path
             case "cd":
                 s_args = subcmd_parse_args(subcmd_cd_parser, subcmd_argv)
                 if not s_args: return
-                try:
-                    opt.chdir(s_args.dir)
-                except BaseException:
-                    logerr(traceback.format_exc(), "")
-                    return
+                if s_args.local:
+                    try:
+                        os.chdir(s_args.dir)
+                    except BaseException:
+                        logerr(traceback.format_exc(), "")
+                        return
+                else:
+                    try:
+                        opt.chdir(s_args.dir)
+                    except BaseException:
+                        logerr(traceback.format_exc(), "")
+                        return
                 shell_workdir = opt.getcwd()
             case "ls":
                 s_args = subcmd_parse_args(subcmd_ls_parser, subcmd_argv)
@@ -1881,8 +1973,44 @@ if __name__ == '__main__':
                     print(f"Total report: Wrote {countinfo[0]} directories, {countinfo[1]} files", end = "")
                     if showunknown: print(f", {countinfo[2]} unknown", end = "")
                     print()
-
-                    
+            case "read":
+                s_args = subcmd_parse_args(subcmd_read_parser, subcmd_argv)
+                if not s_args: return
+                if s_args.blocksize <= 0:
+                    logerr("block-size must be > 0", "")
+                    return
+                _subcmd_read_lfunc(s_args, s_args.dst, s_args.src)
+            case "cat":
+                s_args = subcmd_parse_args(subcmd_cat_parser, subcmd_argv)
+                if not s_args: return
+                if s_args.blocksize <= 0:
+                    logerr("block-size must be > 0", "")
+                    return
+                buf = BytesIO()
+                for src in s_args.src:
+                    ret = _subcmd_read_lfunc(s_args, buf, src, enable_report = False)
+                    if ret:
+                        return
+                    print(ANSI_CTRL_CLRLINE, end="")
+                    if buf.getvalue()[-1] != 10: # ord("\n")==10
+                        buf.write(b"\n")
+                buf.seek(0)
+                lastct = None
+                show_n = s_args.number
+                squeeze_blank = s_args.squeeze_blank
+                linesct = buf.readlines()
+                maxnumsl = len(str(len(linesct))) + 1
+                for n, line in enumerate(linesct, 1):
+                    if squeeze_blank and lastct == b"\n" and line == b"\n":
+                        continue
+                    if show_n:
+                        sys.stdout.write(f"{linenum_color}{n:>{maxnumsl}}{rstcolor} ")
+                    sys.stdout.buffer.write(line)
+                    if line[-1] != 10: # ord("\n")==10
+                        sys.stdout.buffer.write(b"\n")
+                    lastct = line
+            case "pull":
+                pass
             case _:
                 logerr(f"unknown subcommand: {subcmd}", "")
     def shell():
