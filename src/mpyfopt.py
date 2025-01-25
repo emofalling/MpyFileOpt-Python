@@ -23,10 +23,10 @@ __version__ = '1.0'
 
 micropython_code_file = f"{os.path.dirname(__file__)}/on_micropython/src.py"
 encoding = "utf-8"
-# Serial Terminal Codes / 终端串口代码
+# Serial Terminal Codes
 TER_INTP = b"\x03" # Terminal_Interrupt
 TER_NEWL = b"\r\n" # Terminal_NewLine
-# Commands / 命令
+# Commands
 ANS = b"\xaa" # Answer
 ERR = b"\xff" # Error
 SUC = b"\x00" # Success
@@ -35,10 +35,10 @@ TRUE = b"\x00"
 FALSE = b"\x01"
 NONE = b"\x02"
 
-GSV = b"\x00" # get source version / 获取源版本
-GUN = b"\x01" # get uname / 获取名称
-GID = b"\x02" # get uid / 获取uid
-GFQ = b"\x03" # get cpu freq / 获取cpu频率
+GSV = b"\x00" # get source version
+GUN = b"\x01" # get uname
+GID = b"\x02" # get uid
+GFQ = b"\x03" # get cpu freq
 
 GWD = b"\x10" # getcwd
 SWD = b"\x11" # setcwd
@@ -551,7 +551,7 @@ class MpyFileOpt:
             err = self._com_read_string()
             if verbose: print("[5/5] Done.")
             self._dev_raise("ilistdir", err)
-    def upload(self, mpy_dst_file: str | bytes | bytearray, src_fp: SupportsReadBinaryIO, src_size: int, block_size: int = 4096, write_callback_function: Callable[[int, int], None] = None, *, verbose = False) -> None:
+    def upload(self, mpy_dst_file: str | bytes | bytearray, src_fp: SupportsReadBinaryIO, src_size: int, block_size: int = 4096, write_callback_function: Callable[[int, int], None] = None, *, verbose: bool = False) -> None:
         """Upload file to the device
 
             Args
@@ -577,29 +577,11 @@ class MpyFileOpt:
             `MpyFileOptError`: if device return error string
             Other: not to elaborate
         """
-        """上传文件至设备
-            参数:
-            `mpy_dst_file`: 上传至设备的路径
-            `src_fp`: 主机可写的BytesIO对象.如果它从`open()`中返回 , 必须采用`rb`或其他字节对象.
-            `src_size`: 源文件大小
-            `block_size`: 每次传输数据的块大小(大于0).越大越快,但是会占用更多的设备内存(RAM).
-            `write_callback_function`: 打印程序的回调函数. 如果它是不可调用的,则不会使用它.
-             - `write_callback_function(total:int, cur:int)`每次传输数据块时都会调用. `total`是文件大小总量, `cur`是当前文件大小
-        
-            `verbose`:打印debug信息(如果verbose == True)
 
-            无返回
-
-            错误:
-            `ValueError`: block_size<=0
-            `TypeError`: 回调参数不可用
-            `TimeoutError`: 读/写超时
-            `MpyFileOptError`: 设备返回了错误的字符串
-        """
         if isinstance(mpy_dst_file, str): 
             if verbose: print("[?/5] Convert path str to bytes...")
             mpy_dst_file = mpy_dst_file.encode(encoding)
-        if verbose: print("[?/5] Checking var/func")
+        if verbose: print("[?/5] Check something...")
         if not callable(write_callback_function):
             write_callback_function = lambda total, cur: None
         if block_size <= 0:
