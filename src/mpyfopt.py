@@ -387,8 +387,6 @@ class MpyFileOpt:
             if verbose: print("[4/4] Done.")
             self._dev_raise("get_freq", err)
 
-
-
     def getcwd(self, isstr: bool = True, *, verbose: bool = False) -> str | bytes:
         """Read current workdir(os.getcwd) from the device  
 
@@ -1111,7 +1109,7 @@ if __name__ == '__main__':
             return reprobj
 
 
-    all_commands = ["shell", "ver", "uname", "uid", "freq", "pwd", "cd", "ls", "tree", "write", "push", "read", "cat", "pull", "rm", "rmdir", "mkdir", "mv", "gc", "stat", "statvfs"]
+    all_commands = ["shell", "ver", "uname", "uid", "freq", "pwd", "cd", "ls", "tree", "write", "push", "read", "cat", "pull", "rm", "rmdir", "mkdir", "mv", "gc", "stat"]
     argv = sys.argv[1:]
     colorful = False
     def logerr(msg, prefix = "Error: "):
@@ -1138,7 +1136,10 @@ if __name__ == '__main__':
                     return False
             except:
                 return default
-
+    def get_last_four_octal_digits(mode: int) -> str:
+        octs = oct(mode)[2:]
+        oocts = octs[-4:].zfill(4)
+        return oocts
 
     main_parser = argparse.ArgumentParser(description = "Connect to MicroPython device and do something with subcommands.", epilog = "See README.md for more information.", add_help = True)
     main_parser.add_argument("port", help="serial port")
@@ -1263,6 +1264,49 @@ if __name__ == '__main__':
     subcmd_cat_parser.add_argument("-q", "--quiet", action="store_true", help="do not output progress bar and report.")
     subcmd_cat_parser.add_argument("-w", "--warning", action="store_true", help="If the dst file exists, user can choose whether to overwrite it. If not specified, always overwrite it.")
     subcmd_cat_parser.add_argument("-v", "--verbose", action="store_true", help="output debug info")
+    # pull
+    subcmd_pull_parser = argparse.ArgumentParser("pull", description="Pull items from device", epilog="See README.md for more information.", add_help = True)
+    subcmd_pull_parser.add_argument("-b", "--blocksize", type=int, default=4096, help="block size to push. A larger block size can bring faster transmission speed, but it need larger memory for micropython device. default 4096.")
+    subcmd_pull_parser.add_argument("-nr", "--no-recursive", action="store_true", help="when push the directory, not push recursively subitems")
+    subcmd_pull_parser.add_argument("dst", help="destination path on localhost to receive items")
+    subcmd_pull_parser.add_argument("src", nargs="+", help="Items to pull on device. It can be files or directories")
+    subcmd_pull_parser.add_argument("-q", "--quiet", action="store_true", help="do not output progress bar and report.")
+    subcmd_pull_parser.add_argument("--noreport", action="store_true", help="do not output report")
+    subcmd_pull_parser.add_argument("-w", "--warning", action="store_true", help="If the dst file exists, user can choose whether to overwrite it. If not specified, always overwrite it.")
+    subcmd_pull_parser.add_argument("-v", "--verbose", action="store_true", help="output debug info")
+    # rm
+    subcmd_rm_parser = argparse.ArgumentParser("rm", description="Remove file or directory on device", epilog="See README.md for more information.", add_help = True)
+    subcmd_rm_parser.add_argument("-d", "--dir", action="store_true", help="support remove directory")
+    subcmd_rm_parser.add_argument("-R", "-r", "--recursive", action="store_true", help="remove items. if it is a directory, remove their contents recursively too")
+    subcmd_rm_parser.add_argument("-p", "--print", action="store_true", help="output items to remove")
+    subcmd_rm_parser.add_argument("paths", nargs="+", help="Items to remove on device. It can be files or directories")
+    subcmd_rm_parser.add_argument("-v", "--verbose", action="store_true", help="output debug info")
+    # rmdir
+    subcmd_rmdir_parser = argparse.ArgumentParser("rmdir", description="Remove non-empty directory on device", epilog="See README.md for more information.", add_help = True)
+    subcmd_rmdir_parser.add_argument("dirs", nargs="+", help="Items to remove on device. It can be files or directories")
+    subcmd_rmdir_parser.add_argument("-v", "--verbose", action="store_true", help="output debug info")
+    # mkdir
+    subcmd_mkdir_parser = argparse.ArgumentParser("mkdir", description="Make directory on device", epilog="See README.md for more information.", add_help = True)
+    subcmd_mkdir_parser.add_argument("dirs", nargs="+", help="Items to make on device. It can be files or directories")
+    subcmd_mkdir_parser.add_argument("-v", "--verbose", action="store_true", help="output debug info")
+    # mv
+    subcmd_mv_parser = argparse.ArgumentParser("mv", description="Move (or Rename) file or directory on device", epilog="See README.md for more information.", add_help = True)
+    subcmd_mv_parser.add_argument("src", help="source file or directory on device to move")
+    subcmd_mv_parser.add_argument("dst", help="destination file or directory on device to move")
+    subcmd_mv_parser.add_argument("-v", "--verbose", action="store_true", help="output debug info")
+    # gc
+    subcmd_gc_parser = argparse.ArgumentParser("gc", description="Get GC info from device", epilog="See README.md for more information.", add_help = True)
+    subcmd_gc_parser.add_argument("-r", "--raw", action="store_true", help="output raw gc info. it has no suffix, unit Hz. if not specified, output human readable format with 1024 base.")
+    subcmd_gc_parser.add_argument("-cl", "--collect", action="store_true", help="call gc.collect() before get info")
+    subcmd_gc_parser.add_argument("-c", "--csv", action="store_true", help="output csv format")
+    subcmd_gc_parser.add_argument("-v", "--verbose", action="store_true", help="output debug info")
+    # stat
+    subcmd_stat_parser = argparse.ArgumentParser("stat", description="Get stat(os.stat/os.statvfs) from device", epilog="See README.md for more information.", add_help = True)
+    subcmd_stat_parser.add_argument("-f", "--file-system", action="store_true", help="get filesystem stat(os.statvfs)")
+    subcmd_stat_parser.add_argument("paths", nargs="+", help="paths to get stat")
+    subcmd_stat_parser.add_argument("-v", "--verbose", action="store_true", help="output debug info")
+
+
 
 
     maincmd_argv = []
@@ -1337,7 +1381,7 @@ if __name__ == '__main__':
     eta_color = ETA_COLOR if colorful else ""
     LINENUM_COLOR = ANSI_COLOR_LIGHT_BLACK
     linenum_color = LINENUM_COLOR if colorful else ""
-    def progress_bar(total: int, cur: int, speed: int | float = 0, max_width: int = 50, min_width = 10) -> str:
+    def progress_bar(total: int, cur: int, speed: int | float = 0) -> str:
         # color:
         #[" " max=4 min=1]["\u2501" max=$max_width min=1 rules=[finished:green, running:[loaded:lightred, other:gray]]] XX/XX XB XX.X XB/s eta XX:XX
         # example:    ---------------------------------------- 11.0/12.6 MB 27.1 KB/s eta 0:01:00
@@ -1380,6 +1424,8 @@ if __name__ == '__main__':
             return p0 + p1
         else:
             return p0 + "/" + p1
+    def mpy_last_path(p: str):
+        return "/".join(p.split("/")[:-1])
     last_cur = 0
     last_time = 0
     speed_ctl = []
@@ -1677,7 +1723,7 @@ if __name__ == '__main__':
                     itemslist = []
                     itemsstat: list[stat_result] = []
                     itemstotal = 0
-                    authority = "rwxrwxrwx "
+                    authority = "????????? "
                     namemax_nlink = 0
                     namemax_uid = 0
                     namemax_gid = 0
@@ -1713,33 +1759,32 @@ if __name__ == '__main__':
                         else:
                             itemsstat.append(None)
                             itemssizelist.append((0, ""))
-                        match dr.type:
-                            case stat.S_IFDIR:
-                                icolor = DIR_COLOR
-                                dirlist.append(d)
-                                if s_args.slash:
-                                    d += "/"
-                                itemstype.append("d")
-                            case stat.S_IFREG:
-                                icolor = FILE_COLOR
-                                itemstype.append("-")
-                            case stat.S_IFLNK:
-                                icolor = LINK_COLOR
-                                itemstype.append("l")
-                            case stat.S_IFCHR:
-                                icolor = CHAR_COLOR
-                                itemstype.append("c")
-                            case stat.S_IFBLK:
-                                icolor = BLOCK_COLOR
-                                itemstype.append("b")
-                            case stat.S_IFIFO:
-                                icolor = FIFO_COLOR
-                                itemstype.append("p")
-                            case stat.S_IFSOCK:
-                                icolor = SOCK_COLOR
-                                itemstype.append("s")
-                            case _:
-                                icolor = UNKNOWN_COLOR
+                        if stat.S_ISDIR(dr.type):
+                            icolor = DIR_COLOR
+                            dirlist.append(d)
+                            if s_args.slash:
+                                d += "/"
+                            itemstype.append("d")
+                        elif stat.S_ISREG(dr.type):
+                            icolor = FILE_COLOR
+                            itemstype.append("-")
+                        elif stat.S_ISLNK(dr.type):
+                            icolor = LINK_COLOR
+                            itemstype.append("l")
+                        elif stat.S_ISCHR(dr.type):
+                            icolor = CHAR_COLOR
+                            itemstype.append("c")
+                        elif stat.S_ISBLK(dr.type):
+                            icolor = BLOCK_COLOR
+                            itemstype.append("b")
+                        elif stat.S_ISFIFO(dr.type):
+                            icolor = FIFO_COLOR
+                            itemstype.append("p")
+                        elif stat.S_ISSOCK(dr.type):
+                            icolor = SOCK_COLOR
+                            itemstype.append("s")
+                        else:
+                            icolor = UNKNOWN_COLOR
                         icolors = icolor if colorful else ""
                         if s_args.quote:
                             d = f"{_repr(d)}"
@@ -1835,40 +1880,39 @@ if __name__ == '__main__':
                         d = dr.name
                         if s_args.quote:
                             d = _repr(d)
-                        match dr.type:
-                            case stat.S_IFDIR:
-                                icolor = DIR_COLOR
-                                types = "directory"
-                                _countinfo[0] += 1
-                                if s_args.slash:
-                                    d += "/"
-                            case stat.S_IFREG:
-                                icolor = FILE_COLOR
-                                types = "file"
-                                _countinfo[1] += 1
-                            case stat.S_IFLNK:
-                                icolor = LINK_COLOR
-                                types = "link"
-                                _countinfo[1] += 1
-                            case stat.S_IFCHR:
-                                icolor = CHAR_COLOR
-                                types = "character"
-                                _countinfo[1] += 1
-                            case stat.S_IFBLK:
-                                icolor = BLOCK_COLOR
-                                types = "block"
-                                _countinfo[1] += 1
-                            case stat.S_IFIFO:
-                                icolor = FIFO_COLOR
-                                types = "fifo"
-                                _countinfo[1] += 1
-                            case stat.S_IFSOCK:
-                                icolor = SOCK_COLOR
-                                types = "socket"
-                                _countinfo[1] += 1
-                            case _:
-                                icolor = UNKNOWN_COLOR
-                                _countinfo[2] += 1
+                        if stat.S_ISDIR(dr.type):
+                            icolor = DIR_COLOR
+                            types = "directory"
+                            _countinfo[0] += 1
+                            if s_args.slash:
+                                d += "/"
+                        elif stat.S_ISREG(dr.type):
+                            icolor = FILE_COLOR
+                            types = "file"
+                            _countinfo[1] += 1
+                        elif stat.S_ISLNK(dr.type):
+                            icolor = LINK_COLOR
+                            types = "link"
+                            _countinfo[1] += 1
+                        elif stat.S_ISCHR(dr.type):
+                            icolor = CHAR_COLOR
+                            types = "character"
+                            _countinfo[1] += 1
+                        elif stat.S_ISBLK(dr.type):
+                            icolor = BLOCK_COLOR
+                            types = "block"
+                            _countinfo[1] += 1
+                        elif stat.S_ISFIFO(dr.type):
+                            icolor = FIFO_COLOR
+                            types = "fifo"
+                            _countinfo[1] += 1
+                        elif stat.S_ISSOCK(dr.type):
+                            icolor = SOCK_COLOR
+                            types = "socket"
+                            _countinfo[1] += 1
+                        else:
+                            icolor = UNKNOWN_COLOR
+                            _countinfo[2] += 1
                         icolors = icolor if colorful else ""
                         not_limit = s_args.level == -1 or len(_depthinfo) + 1 < s_args.level
                         canls = dr.type == stat.S_IFDIR and not_limit
@@ -1947,25 +1991,26 @@ if __name__ == '__main__':
                             _countinfo[1] += 1
                             fp = mpy_path_append(dst, os.path.basename(s))
                             print("Write file:", fp)
-                            _subcmd_write_lfunc(s_args, mpy_path_append(dst, os.path.basename(s)), s)
+                            _subcmd_write_lfunc(s_args, fp, s)
                         elif stat.S_ISDIR(s_stat.st_mode):
                             _countinfo[0] += 1
-                            if not s_args.no_recursive:
-                                try:
-                                    dp = mpy_path_append(dst, os.path.basename(s))
-                                    print("Create directory:", dp)
-                                    opt.mkdir(dp, verbose = s_args.verbose)
-                                except BaseException:
-                                    logerr(traceback.format_exc(), "")
-                                try:
-                                    dlist = os.listdir(s)
-                                except BaseException:
-                                    logerr(traceback.format_exc(), "")
-                                    continue
-                                __subcmd_push_lfunc(s_args, mpy_path_append(dst, os.path.basename(s)), [os.path.join(s, d) for d in dlist], _countinfo)
+                            if s_args.no_recursive:
+                                continue
+                            try:
+                                dp = mpy_path_append(dst, os.path.basename(s))
+                                print("Create directory:", dp)
+                                opt.mkdir(dp, verbose = s_args.verbose)
+                            except BaseException:
+                                logerr(traceback.format_exc(), "")
+                            try:
+                                dlist = os.listdir(s)
+                            except BaseException:
+                                logerr(traceback.format_exc(), "")
+                                continue
+                            __subcmd_push_lfunc(s_args, dp, [os.path.join(s, d) for d in dlist], _countinfo)
                         else:
                             _countinfo[2] += 1
-                            logerr(f"unknown file type: {s}", "")
+                            logerr(f"unknown item type: {s}", "")
                 countinfo = [0, 0, 0]
                 __subcmd_push_lfunc(s_args, s_args.dst, s_args.src, countinfo)
                 if not s_args.noreport:
@@ -1991,7 +2036,7 @@ if __name__ == '__main__':
                     ret = _subcmd_read_lfunc(s_args, buf, src, enable_report = False)
                     if ret:
                         return
-                    print(ANSI_CTRL_CLRLINE, end="")
+                    print(ANSI_CTRL_CLRLINE, end="") 
                     if buf.getvalue()[-1] != 10: # ord("\n")==10
                         buf.write(b"\n")
                 buf.seek(0)
@@ -2006,11 +2051,240 @@ if __name__ == '__main__':
                     if show_n:
                         sys.stdout.write(f"{linenum_color}{n:>{maxnumsl}}{rstcolor} ")
                     sys.stdout.buffer.write(line)
-                    if line[-1] != 10: # ord("\n")==10
-                        sys.stdout.buffer.write(b"\n")
                     lastct = line
             case "pull":
-                pass
+                s_args = subcmd_parse_args(subcmd_pull_parser, subcmd_argv)
+                if not s_args: return
+                if s_args.blocksize <= 0:
+                    logerr("block-size must be > 0", "")
+                    return
+                def __subcmd_pull_lfunc(s_args, dst: str, src: list[str], _countinfo: list[int]):
+                    for s in src:
+                        if s_args.verbose: print("Read item stat:", s)
+                        try:
+                            st = opt.stat(s, verbose = s_args.verbose)
+                        except BaseException:
+                            logerr(traceback.format_exc(), "")
+                            continue
+                        if stat.S_ISREG(st.st_mode):
+                            fp = os.path.join(dst, os.path.basename(s))
+                            print("Read file:", s)
+                            _countinfo[1] += 1
+                            _subcmd_read_lfunc(s_args, fp, s)
+                        elif stat.S_ISDIR(st.st_mode):
+                            if s_args.no_recursive:
+                                continue
+                            if s_args.verbose: print("Read item listdir:", s)
+                            try:
+                                dp = os.path.join(dst, os.path.basename(s))
+                                print("Create directory:", dp)
+                                if os.path.normpath(dp.replace("\\", "/")) == os.path.normpath(dst.replace("\\", "/")):
+                                    print("Warning: destination path is same as source path", "")
+                                else:
+                                    os.mkdir(dp)
+                                dlist = opt.ilistdir(s, verbose = s_args.verbose)
+                            except BaseException:
+                                logerr(traceback.format_exc(), "")
+                                continue
+                            _countinfo[0] += 1
+                            for d in dlist:
+                                __subcmd_pull_lfunc(s_args, os.path.join(dst, os.path.basename(s)), [mpy_path_append(s, d.name)], _countinfo)
+                        else:
+                            _countinfo[2] += 1
+                            logerr(f"unknown item type: {s}", "")
+                countinfo = [0, 0, 0]
+                if not os.path.exists(s_args.dst):
+                    print(f"Warning: Destination path not exists: {s_args.dst}, will create it")
+                    os.makedirs(s_args.dst)
+                __subcmd_pull_lfunc(s_args, s_args.dst, s_args.src, countinfo)
+                if not s_args.noreport:
+                    showunknown = countinfo[2] > 0
+                    print(f"Total report: Read {countinfo[0]} directories, {countinfo[1]} files", end = "")
+                    if showunknown: print(f", {countinfo[2]} unknown", end = "")
+                    print()
+            case "rm":
+                s_args = subcmd_parse_args(subcmd_rm_parser, subcmd_argv)
+                if not s_args: return
+                support_rmdir = s_args.dir or s_args.recursive
+                if s_args.verbose: print("Checking item type")
+                def __subcmd_rm_lfunc(s_args, path: str):
+                    if s_args.print:
+                        print("Removing:", path)
+                    try:
+                        st = opt.stat(path, verbose = s_args.verbose)
+                    except MpyFileOptError:
+                        logerr(f"Path not exists: {path}", "")
+                        return
+                    except BaseException:
+                        logerr(traceback.format_exc(), "")
+                        return
+                    if stat.S_ISREG(st.st_mode):
+                        if s_args.verbose: print("Remove file")
+                        try:
+                            opt.remove(path, verbose = s_args.verbose)
+                        except BaseException:
+                            logerr(traceback.format_exc(), "")
+                    elif stat.S_ISDIR(st.st_mode):
+                        if not support_rmdir:
+                            logerr(f"Path is a directory: {path}", "")
+                            return
+                        if s_args.verbose: print("Remove directory")
+                        try:
+                            ls = opt.listdir(path, verbose = s_args.verbose)
+                        except BaseException:
+                            logerr(traceback.format_exc(), "")
+                            return
+                        if len(ls) != 0:
+                            if not s_args.recursive:
+                                logerr(f"Directory not empty: {path}", "")
+                                return
+                            if s_args.verbose: print("Remove directory recursively")
+                            for l in ls:
+                                __subcmd_rm_lfunc(s_args, mpy_path_append(path, l))
+                        try:
+                            opt.rmdir(path, verbose = s_args.verbose)
+                        except BaseException:
+                            logerr(traceback.format_exc(), "")
+                    else:
+                        logerr(f"Unknown item type: {path}", "")
+                for p in s_args.paths:
+                    __subcmd_rm_lfunc(s_args, p)
+            case "rmdir":
+               s_args = subcmd_parse_args(subcmd_rmdir_parser, subcmd_argv)
+               if not s_args: return
+               for d in s_args.dirs:
+                    if s_args.verbose: print("Removing directory:", d)
+                    try:
+                        opt.rmdir(d, verbose = s_args.verbose)
+                    except BaseException:
+                        logerr(traceback.format_exc(), "")
+            case "mkdir":
+                s_args = subcmd_parse_args(subcmd_mkdir_parser, subcmd_argv)
+                if not s_args: return
+                for d in s_args.dirs:
+                    if s_args.verbose: print("Creating directory:", d)
+                    try:
+                        opt.mkdir(d, verbose = s_args.verbose)
+                    except BaseException:
+                        logerr(traceback.format_exc(), "")
+            case "mv":
+                s_args = subcmd_parse_args(subcmd_mv_parser, subcmd_argv)
+                if not s_args: return
+                if s_args.verbose: print("Checking source path")
+                try:
+                    opt.stat(s_args.src, verbose = s_args.verbose)
+                except MpyFileOptError:
+                    logerr(f"Source path not exists: {s_args.src}", "")
+                    return
+                except BaseException:
+                    logerr(traceback.format_exc(), "")
+                    return
+                if s_args.verbose: print("Checking destination path")
+                try:
+                    opt.stat(s_args.dst, verbose = s_args.verbose)
+                except MpyFileOptError:
+                    # path not exists, ok
+                    pass
+                except BaseException:
+                    logerr(traceback.format_exc(), "")
+                    return
+                else:
+                    logerr(f"Cannot overwrite {s_args.dst} with {s_args.src}")
+                    return
+                opt.rename(s_args.src, s_args.dst, verbose = s_args.verbose)
+            case "gc":
+                s_args = subcmd_parse_args(subcmd_gc_parser, subcmd_argv)
+                if not s_args: return
+                try:
+                    info = opt.get_gc_info(s_args.collect, verbose = s_args.verbose)
+                except BaseException:
+                    logerr(traceback.format_exc(), "")
+                used, free = info
+                total = free + used
+                if not s_args.raw:
+                    div_t, suf_t = auto_suffix(total, BASE_BI, SUFFIX_LIST_BI)
+                    div_f, suf_f = auto_suffix(free, BASE_BI, SUFFIX_LIST_BI)
+                    div_u, suf_u = auto_suffix(used, BASE_BI, SUFFIX_LIST_BI)
+                    total = round(total / div_t, 2)
+                    free = round(free / div_f, 2)
+                    used = round(used / div_u, 2)
+                    total_c = f"{total:.2f}{suf_t}"
+                    free_c = f"{free:.2f}{suf_f}"
+                    used_c = f"{used:.2f}{suf_u}"
+                else:
+                    suf_t, suf_f, suf_u = "bytes", "bytes", "bytes"
+                    total_c = total; free_c = free; used_c = used
+                if s_args.csv:
+                    print(total_c, free_c, used_c)
+                else:
+                    print(f"Total: {total} {suf_t}")
+                    print(f" Free: {free} {suf_f}")
+                    print(f" Used: {used} {suf_u}")
+            case "stat":
+                s_args = subcmd_parse_args(subcmd_stat_parser, subcmd_argv)
+                if not s_args: return
+                for p in s_args.paths:
+                    if s_args.verbose: print("Getting stat:", p)
+                    if s_args.file_system:
+                        try:
+                            st = opt.statvfs(p, verbose = s_args.verbose)
+                        except BaseException:
+                            logerr(traceback.format_exc(), "")
+                            continue
+                        print(f"  File: {p}")
+                        print(f"    ID: /    Namelen: {st.f_namemax:<10}  Flag: {st.f_flag if st.f_flag>0 else "/"}")
+                        print(f"Block size: {st.f_bsize:<10}  Fundamental block size: {st.f_frsize}")
+                        print(f"Blocks: {st.f_blocks:<10}  Free: {st.f_bfree:<10}  Available: {st.f_bavail}")
+                        print(f" Files: {st.f_files:<10}  Free: {st.f_ffree}")
+                    else:
+                        try:
+                            st = opt.stat(p, verbose = s_args.verbose)
+                        except BaseException:
+                            logerr(traceback.format_exc(), "")
+                            continue
+                        if stat.S_ISDIR(st.st_mode):
+                            icolor = dircolor
+                            itype = "d"
+                            itypec = "directory"
+                        elif stat.S_ISREG(st.st_mode):
+                            icolor = filecolor
+                            itype = "-"
+                            itypec = "regular file"
+                        elif stat.S_ISLNK(st.st_mode):
+                            icolor = linkcolor
+                            itype = "l"
+                            itypec = "symbolic link"
+                        elif stat.S_ISCHR(st.st_mode):
+                            icolor = charcolor
+                            itype = "c"
+                            itypec = "character device"
+                        elif stat.S_ISBLK(st.st_mode):
+                            icolor = blockcolor
+                            itype = "b"
+                            itypec = "block device"
+                        elif stat.S_ISFIFO(st.st_mode):
+                            icolor = fifocolor
+                            itype = "p"
+                            itypec = "FIFO"
+                        elif stat.S_ISSOCK(st.st_mode):
+                            icolor = sockcolor
+                            itype = "s"
+                            itypec = "socket"
+                        else:
+                            icolor = unknowncolor
+                            itype = "u"
+                            itypec = "unknown"
+                        print(f"  File: {icolor}{p}{rstcolor}")
+                        print(f"  Size: {st.st_size}    {itypec}")
+                        print(f"Device: {"/" if st.st_dev<=0 else st.st_dev}  Inode: {"/" if st.st_ino<=0 else st.st_ino}     Links: {"/" if st.st_nlink<=0 else st.st_nlink}")
+                        stostr = get_last_four_octal_digits(st.st_mode)
+                        print(f"Access: ({stostr if stostr!="0000" else "-"}/{itype}????????? )  Uid: {"/" if st.st_uid<=0 else st.st_uid}  Gid: {"/" if st.st_gid<=0 else st.st_gid}")
+                        atime = datetime.datetime.fromtimestamp(st.st_atime).strftime("%Y-%m-%d %H:%M:%S.%f")
+                        mtime = datetime.datetime.fromtimestamp(st.st_mtime).strftime("%Y-%m-%d %H:%M:%S.%f")
+                        ctime = datetime.datetime.fromtimestamp(st.st_ctime).strftime("%Y-%m-%d %H:%M:%S.%f")
+                        print(f"Access: {atime if st.st_atime>0 else "/"}")
+                        print(f"Modify: {mtime if st.st_mtime>0 else "/"}")
+                        print(f"Change: {ctime if st.st_ctime>0 else "/"}")
             case _:
                 logerr(f"unknown subcommand: {subcmd}", "")
     def shell():
