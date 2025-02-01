@@ -19,7 +19,8 @@ import serial
 # types
 from collections import namedtuple
 
-__version__ = '1.0'
+__version__ = "1.0"
+__author__ = "emofalling"
 
 micropython_code_file = f"{os.path.dirname(__file__)}/on_micropython/src.py"
 encoding = "utf-8"
@@ -549,7 +550,7 @@ class MpyFileOpt:
             err = self._com_read_string()
             if verbose: print("[5/5] Done.")
             self._dev_raise("ilistdir", err)
-    def upload(self, mpy_dst_file: str | bytes | bytearray, src_fp: SupportsReadBinaryIO, src_size: int, block_size: int = 4096, write_callback_function: Callable[[int, int], None] = None, *, verbose: bool = False) -> None:
+    def upload(self, mpy_dst_file: str | bytes | bytearray, src_fp: SupportsReadBinaryIO, src_size: int, write_callback_function: Callable[[int, int], None] = None, block_size: int = 4096, *, verbose: bool = False) -> None:
         """Upload file to the device
 
             Args
@@ -557,9 +558,10 @@ class MpyFileOpt:
             `mpy_dst_file`: path to write in the device
             `src_fp`: BytesIO object in host that writable. If it is return value from `open()` , the mode must be `rb` or any readable binary mode.
             `src_size`: size of the file
-            `block_size`: block size to transmit data. It must be > 0. The larger `block_size`, the faster write speed, but the more memory usage on device.
             `write_callback_function`: callback function to print progress. If it isn't callable, there will not use it.
              - `write_callback_function(total:int, cur:int)` is called every time a block is transmitted. `total` is the total size of the file, `cur` is the current size of the file.
+            
+            `block_size`: block size to transmit data. It must be > 0. The larger `block_size`, the faster write speed, but the more memory usage on device.
         
             `verbose`: if True, print debug info
 
@@ -637,16 +639,17 @@ class MpyFileOpt:
             write_callback_function(total, cur)
             if verbose: print(f"Sended {lendata} bytes, {cur}/{total}")
         if verbose: print("[5/5] Done.")
-    def download(self, mpy_src_file: str | bytes | bytearray, dst_fp: SupportsWriteBinaryIO, block_size: int = 4096, read_callback_function: Callable[[int, int], None] = None, *, verbose: bool = False) -> None:
+    def download(self, mpy_src_file: str | bytes | bytearray, dst_fp: SupportsWriteBinaryIO, read_callback_function: Callable[[int, int], None] = None, block_size: int = 4096, *, verbose: bool = False) -> None:
         """Download file from the device
 
             Args
             ---
             `mpy_src_file`: path to read in the device
             `dst_fp`: BytesIO object in host that writable. If it is return value from `open()` , the mode must be `wb` or any writable binary mode.
-            `block_size`: block size for read/write
             `read_callback_function`: callback function to print progress. If it isn't callable, there will not use it.
                 - `read_callback_function(total:int, cur:int)` is called every time a block is transmitted. `total` is the total size of the file, `cur` is the current size of the file.
+            
+            `block_size`: block size for read/write
 
             `verbose`: if True, print debug info
 
@@ -1327,8 +1330,11 @@ if __name__ == '__main__':
                 current_subcmd_argv.append(i)
             else:
                 maincmd_argv.append(i)
-    print(maincmd_argv)
-    print(subcmd_argv_list)
+    if "-v" in maincmd_argv or "--verbose" in maincmd_argv:
+        print("Main command:", shlex.join(maincmd_argv))
+        print("Subcommands:")
+        for i in subcmd_argv_list:
+            print("    "+_repr(shlex.join(i))[1:-1])
     args = main_parser.parse_args(maincmd_argv)
     colorful = args.no_colorful
     progressbar_maxwidth = args.progressbar_maxwidth
@@ -1494,7 +1500,7 @@ if __name__ == '__main__':
         try:
             with HideCursor():
                 with open(src, "rb") as f:
-                    opt.upload(dst, f, fsize, s_args.blocksize, __callback_progressbar, verbose = s_args.verbose)
+                    opt.upload(dst, f, fsize, __callback_progressbar, s_args.blocksize, verbose = s_args.verbose)
         except BaseException:
             logerr(traceback.format_exc(), "")
             return
@@ -1546,10 +1552,10 @@ if __name__ == '__main__':
         try:
             with HideCursor():
                 if custom_io:
-                    opt.download(src, dst, s_args.blocksize, __callback_progressbar, verbose = s_args.verbose)
+                    opt.download(src, dst, __callback_progressbar, s_args.blocksize, verbose = s_args.verbose)
                 else:
                     with open(dst, "wb") as f:
-                        opt.download(src, f, s_args.blocksize, __callback_progressbar, verbose = s_args.verbose)
+                        opt.download(src, f, __callback_progressbar, s_args.blocksize, verbose = s_args.verbose)
         except BaseException:
             logerr(traceback.format_exc(), "")
             return 1
