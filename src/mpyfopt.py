@@ -1109,7 +1109,7 @@ if __name__ == '__main__':
             return reprobj
 
 
-    all_commands = ["shell", "ver", "uname", "uid", "freq", "pwd", "cd", "ls", "tree", "write", "push", "read", "cat", "pull", "rm", "rmdir", "mkdir", "mv", "gc", "stat"]
+    all_commands = ["help", "shell", "ver", "uname", "uid", "freq", "pwd", "cd", "ls", "tree", "write", "push", "read", "cat", "pull", "rm", "rmdir", "mkdir", "mv", "gc", "stat"]
     argv = sys.argv[1:]
     colorful = False
     def logerr(msg, prefix = "Error: "):
@@ -1156,8 +1156,13 @@ if __name__ == '__main__':
     main_parser.add_argument("-v" , "--verbose"           , action="store_true", help="output debug info")
     main_parser.add_argument("-nc" , "--no-colorful"          , action="store_false", help="make output not colorful. if terminal not support ANSI color escape sequence, recommended select this option")
     main_parser.add_argument("--version", action="version", version=f"{__version__}")
-    # main_parser.add_argument("subcommands", nargs=0, help="subcommand and its arguments
+    
+    # subcommand's parser must be named as subcmd_{subcommand}_parser format
 
+    # help
+    subcmd_help_parser = argparse.ArgumentParser("help", description = "Print help message of subcommand.", epilog = "See README.md for more information.", add_help = True)
+    subcmd_help_parser.add_argument("cmds", nargs="*", help="subcommands to print help message. if not specified, print help message of all subcommands.")
+    subcmd_help_parser.add_argument("-u", "--usage", action="store_true", help="print usage")
     # shell
     subcmd_shell_parser = argparse.ArgumentParser("shell", description = "Into a shell to key and run subcommands conveniently.", epilog = "See README.md for more information.", add_help = True)
     # shell-exit
@@ -1565,6 +1570,25 @@ if __name__ == '__main__':
         global shell_workdir, last_cur, last_time, speed_ctl
         subcmd = subcmd_argv[0]
         match subcmd:
+            case "help":
+                s_args = subcmd_parse_args(subcmd_help_parser, subcmd_argv)
+                if not s_args: return
+                def __subcmd_help_printsubcmdusg_lfunc(s_args, subcmd_name: str):
+                    subcmd_parser: argparse.ArgumentParser = eval(f"subcmd_{subcmd_name}_parser")
+                    print(subcmd_parser.prog+":")
+                    if s_args.usage:
+                        print("    "+subcmd_parser.format_help().replace("\n", "\n    "))
+                    else:
+                        print("    "+subcmd_parser.description)
+                if len(s_args.cmds) == 0:
+                    cmds = all_commands
+                else:
+                    cmds = s_args.cmds
+                for cmd in cmds:
+                    if cmd in all_commands:
+                        __subcmd_help_printsubcmdusg_lfunc(s_args, cmd)
+                    else:
+                        logerr(f"help: unknown subcommand: {cmd}", "")
             case "shell":
                 s_args = subcmd_parse_args(subcmd_shell_parser, subcmd_argv)
                 if not s_args: return
@@ -2303,7 +2327,6 @@ if __name__ == '__main__':
                     pass
                 else:
                     break
-            #print(args)
             if len(args) == 0:
                 continue
             if args[0] == "exit":

@@ -83,8 +83,7 @@ while True:
                 uw(S)
                 while fs>0:
                     ib=ur(1)
-                    if ib==BW:
-                        uri(bf)
+                    if ib==BW:uri(bf)
                     else:
                         del bf;bs=ruint();bf=ur(bs)
                     try:f.write(bf)
@@ -109,8 +108,7 @@ while True:
                         try:bf=f.read(bs)
                         except Exception as e:err(e);break
                         else:uw(S)
-                    uw(bf)
-                    fs-=bs
+                    uw(bf);fs-=bs
         except Exception as e:err(e)
     elif code==b"\x22":
         try:os.remove(rstr())
