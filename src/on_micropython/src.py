@@ -17,8 +17,7 @@ try:
     if bdev:
         if isinstance(bdev,list):bdev = bdev[0]
         os.mount(bdev, "/")
-except OSError:
-    import inisetup;vfs=inisetup.setup()
+except OSError:import inisetup;vfs=inisetup.setup()
 from machine import UART
 uart=UART(1,baudrate=115200,tx=1,rx=3,timeout=10000)
 uw=uart.write
