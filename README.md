@@ -8,5 +8,22 @@
 - 支持非空文件夹的递归上传、递归下载、递归删除
 - 完善的设备异常处理机制，保证稳定性
 
-### 安装
+它适合于需要高效
 
+## 安装和使用
+### 以命令行方式使用
+如果希望直接安装，可以使用pip安装（具体）：
+```shell
+pip install mpyfileopt
+```
+否则，可以先拷贝此项目后直接定位到目录[./mpyfopt](./mpyfopt)
+```
+git clone https://github.com/emofalling/MpyFileOpt-Python.git
+cd ./MpyFileOpt-Python/mpyfopt
+```
+然后，验证您可以运行mpyfopt程序并获得帮助输出：
+### 以导入方式使用
+在python中执行此代码以导入：
+```python
+import mpyfopt
+```
