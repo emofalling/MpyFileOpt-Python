@@ -1040,7 +1040,7 @@ class MpyFileOpt:
 
 
 
-if __name__ == '__main__':
+def main():
     import stat
     import datetime
     import traceback
@@ -2348,3 +2348,6 @@ if __name__ == '__main__':
         match_subcmd(subcmd_argv)
 
     opt.close()
+
+if __name__ == "__main__":
+    main()
