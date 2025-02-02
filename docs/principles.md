@@ -1,1 +1,0 @@
-🌐 [中文](./principles_zh.md)

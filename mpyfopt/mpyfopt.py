@@ -4,6 +4,7 @@
 import sys
 import os
 import time
+import math
 import struct
 # type extension
 from typing import TypeVar, Callable, Any
@@ -99,6 +100,8 @@ class MpyFileOpt:
                  timeout: int | None            = 1, 
                  write_timeout: int | None      = 1,
                  inter_byte_timeout: int | None = 0.1,
+                 wait_timeout: int              = 10,
+                 immediate_connect: bool        = True,
                  *,
                  verbose: bool = True
                 ) -> None:
@@ -121,8 +124,13 @@ class MpyFileOpt:
             Other: not to elaborate 
         """
         self.verbose = verbose
+        self.wait_timeout = math.inf if wait_timeout is None else wait_timeout
+        if not isinstance(self.wait_timeout, (int, float)):
+            raise TypeError(f"wait_timeout must be int or float, but got {type(self.wait_timeout)}")
+        if self.wait_timeout < 0.0:
+            raise ValueError(f"wait_timeout must be positive, but got {self.wait_timeout}")
         self.ser = None
-        self.ser = serial.Serial(port      ,          # port
+        self.ser = serial.Serial(port     ,          # port
                                  baudrate ,          # baudrate
                                  8        ,          # bytesize
                                  parity   ,          # parity
@@ -134,7 +142,8 @@ class MpyFileOpt:
                                  False    ,          # dsrdtr
                                  inter_byte_timeout, # inter_byte_timeout
                                 )
-        self._connect()
+        if immediate_connect:
+            self.connect(verbose = self.verbose)
     def _dev_raise(self, funcname: str, errstr: bytes) -> None:
         """If the error throwed from micropython device, call it to throw error"""
         raise MpyFileOptError(f"On {funcname}(): In Micropython Device: \n    {errstr.decode(encoding, "ignore")}")
@@ -145,7 +154,8 @@ class MpyFileOpt:
         self.ser.dtr = True
     def _dev_wait_in_repl(self) -> None:
         """send interrupt until device in REPL mode"""
-        while True:
+        start_time = time.perf_counter()
+        while time.perf_counter() - start_time < self.wait_timeout:
             time.sleep(0.05)
             self._com_write(TER_INTP)
             if b"\n>>> " in self.ser.read_all():
@@ -156,6 +166,8 @@ class MpyFileOpt:
                 ## Special Code End
 
                 break
+        else:
+            raise TimeoutError("Wait time out.")
     def _dev_send_src(self) -> None:
         """send source code to device"""
         with open(micropython_code_file, "r", encoding=encoding) as f:
@@ -171,24 +183,16 @@ class MpyFileOpt:
         return ret
     def _com_wait_ans(self):
         """wait device answer"""
-        while True:
+        start_time = time.perf_counter()
+        while time.perf_counter() - start_time < self.wait_timeout:
             #rdall = self.ser.read_all()
             #print(rdall.decode(encoding, "ignore"),end="")
             #if ANS in rdall:
             #    break
             if self.ser.read(1) == ANS:
                 break
-    def _connect(self) -> None:
-        """Connect to device"""
-        if self.verbose: print("[1/5] Reset device...")
-        self._dev_reset()
-        if self.verbose: print("[2/5] Wait device in REPL...")
-        self._dev_wait_in_repl()
-        if self.verbose: print("[3/5] Send source code...")
-        self._dev_send_src()
-        if self.verbose: print("[4/5] Wait device answer...")
-        self._com_wait_ans()
-        if self.verbose: print("[5/5] Done.")
+        else:
+            raise TimeoutError("Wait time out.")
     def _com_read_bool(self) -> bool | None:
         """read boolean data or nonetype from the serial port"""
         ret = self.ser.read(1)
@@ -243,6 +247,33 @@ class MpyFileOpt:
         ret = self.ser.write(str)
         if ret == None:
             raise TimeoutError("Write time out.")
+
+    def connect(self, *, verbose: bool = True) -> None:
+        """Connect to device
+
+            Args
+            ---
+            `verbose`: if True, print debug info
+
+            Returns
+            ---
+            None
+
+            Raises
+            ---
+            `TimeoutError`: if read or write time out
+            `MpyFileOptError`: if device return error string
+            Other: not to elaborate 
+        """
+        if verbose: print("[1/5] Reset device...")
+        self._dev_reset()
+        if verbose: print("[2/5] Wait device in REPL...")
+        self._dev_wait_in_repl()
+        if verbose: print("[3/5] Send source code...")
+        self._dev_send_src()
+        if verbose: print("[4/5] Wait device answer...")
+        self._com_wait_ans()
+        if verbose: print("[5/5] Done.")
     
     def get_source_version(self, *, verbose: bool = False) -> tuple[int, int]:
         """Get source version
@@ -1148,6 +1179,7 @@ def main():
     main_parser.add_argument("-To", "--timeout"           , type=float,                                 default=1,      help="serial timeout. if 0, no timeout. default 0")
     main_parser.add_argument("-Tw", "--write-timeout"     , type=float,                                 default=1,      help="serial write timeout. if 0, no timeout. default 0")
     main_parser.add_argument("-Tb", "--inter-byte-timeout", type=float,                                 default=0.1,    help="serial inter-byte timeout. default 0.1")
+    main_parser.add_argument("-wt", "--wait-timeout"      , type=float,                                 default=10,     help="serial wait timeout. default 10")
     
     main_parser.add_argument("-pbmaxw", "--progressbar-maxwidth", type=int, default=50, help="progressbar max width. unit is chars. it must be > 0. default 50.")
     main_parser.add_argument("-pbminw", "--progressbar-minwidth", type=int, default=5, help="progressbar min width. unit is chars. it must be > 0. default 5.")
@@ -1345,9 +1377,10 @@ def main():
             baudrate = args.baudrate,
             parity = args.parity,
             stopbits = args.stopbits,
-            timeout = None if args.timeout == 0 else args.timeout,
-            write_timeout = None if args.write_timeout == 0 else args.write_timeout,
-            inter_byte_timeout = None if args.inter_byte_timeout == 0 else args.inter_byte_timeout,
+            timeout            = None if args.timeout            == 0.0 else args.timeout,
+            write_timeout      = None if args.write_timeout      == 0.0 else args.write_timeout,
+            inter_byte_timeout = None if args.inter_byte_timeout == 0.0 else args.inter_byte_timeout,
+            wait_timeout       = None if args.wait_timeout       == 0.0 else args.wait_timeout,
 
             verbose = args.verbose,
         )
