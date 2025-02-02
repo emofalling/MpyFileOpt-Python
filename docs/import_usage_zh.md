@@ -51,7 +51,7 @@ opt.get_source_version(*, verbose: bool = False) -> tuple[int, int]
 opt.uname(isstr: bool = True, *, verbose: bool = False) -> uname_result
 #uname_result(sysname:str|bytes, nodename:str|bytes, release:str|bytes, version:str|bytes, machine:str|bytes)
 ```
-获取micropython设备的系统信息。返回值类似于`os.uname`的返回值。  
+获取micropython设备的系统信息（[`os.uname`](https://docs.micropython.org/en/latest/library/os.html#os.uname)的返回值）。
 参数：
 - `isstr`: 返回的元组中内容是否为字符串。若为`True`，则返回的元组中内容为字符串，否则为`bytes`
 - `verbose`: 是否打印调试信息。若出现异常情况，可以设为`True`以查看调试信息
@@ -62,7 +62,7 @@ opt.uname(isstr: bool = True, *, verbose: bool = False) -> uname_result
 ```python
 opt.get_uid(*, verbose: bool = False) -> bytes
 ```
-获取micropython设备的UID（`machine.unique_id()`的返回值）。  
+获取micropython设备的UID（[`machine.unique_id()`](https://docs.micropython.org/en/latest/library/machine.html#machine.unique_id)的返回值）。  
 参数：
 - `verbose`: 是否打印调试信息。若出现异常情况，可以设为`True`以查看调试信息
 
@@ -72,7 +72,7 @@ opt.get_uid(*, verbose: bool = False) -> bytes
 ```python
 opt.get_freq(*, verbose: bool = False) -> int
 ```
-获取micropython设备的CPU频率（`machine.freq()`的返回值）。  
+获取micropython设备的CPU频率（[`machine.freq()`](https://docs.micropython.org/en/latest/library/machine.html#machine.freq)的返回值）。  
 参数：
 - `verbose`: 是否打印调试信息。若出现异常情况，可以设为`True`以查看调试信息
 
@@ -82,7 +82,7 @@ opt.get_freq(*, verbose: bool = False) -> int
 ```python
 opt.getcwd(isstr: bool = True, *, verbose: bool = False) -> str | bytes
 ```
-获取micropython设备的当前工作目录（`os.getcwd()`的返回值）。  
+获取micropython设备的当前工作目录（[`os.getcwd()`](https://docs.micropython.org/en/latest/library/os.html#os.getcwd)的返回值）。  
 参数：
 - `isstr`: 返回的值是否为字符串。若为`True`，则返回的值为字符串，否则为`bytes`
 - `verbose`: 是否打印调试信息。若出现异常情况，可以设为`True`以查看调试信息
@@ -93,7 +93,7 @@ opt.getcwd(isstr: bool = True, *, verbose: bool = False) -> str | bytes
 ```python
 opt.chdir(path: str | bytes | bytearray, *, verbose: bool = False) -> None
 ```
-更改micropython设备的当前工作目录（`os.chdir()`的返回值）。  
+更改micropython设备的当前工作目录（[`os.chdir()`](https://docs.micropython.org/en/latest/library/os.html#os.chdir)的返回值）。  
 参数：
 - `path`: 新的工作目录
 - `verbose`: 是否打印调试信息。若出现异常情况，可以设为`True`以查看调试信息
@@ -101,7 +101,7 @@ opt.chdir(path: str | bytes | bytearray, *, verbose: bool = False) -> None
 ```python
 opt.listdir(path: str | bytes | bytearray = b".", isstr: bool = True, *, verbose: bool = False) -> list[str | bytes]
 ```
-获取micropython设备指定目录下的文件和文件夹列表（`os.listdir()`的返回值）。  
+获取micropython设备指定目录下的文件和文件夹列表（[`os.listdir()`](https://docs.micropython.org/en/latest/library/os.html#os.listdir)的返回值）。  
 参数：
 - `path`: 指定的目录
 - `isstr`: 返回的列表中内容是否为字符串。若为`True`，则返回的值为字符串，否则为`bytes`
@@ -114,7 +114,7 @@ opt.listdir(path: str | bytes | bytearray = b".", isstr: bool = True, *, verbose
 opt.ilistdir(path: str | bytes | bytearray = b".", isstr: bool = True, *, verbose: bool = False) -> list[ilistdir_item]
 # list[ilistdir_item(name:str|bytes, type:int, inode:int)]
 ```
-获取micropython设备指定目录下的文件和文件夹列表（类似于`os.ilistdir()`的返回值）。  
+获取micropython设备指定目录下的文件和文件夹列表（类似于[`os.ilistdir()`](https://docs.micropython.org/en/latest/library/os.html#os.ilistdir)的返回值）。  
 参数：
 - `path`: 指定的目录
 - `isstr`: 返回的列表中的每个`ilistdir_item`对象的`name`属性内容是否为字符串。若为`True`，则返回的值为字符串，否则为`bytes`
