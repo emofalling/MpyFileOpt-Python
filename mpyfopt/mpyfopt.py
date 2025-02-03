@@ -9,6 +9,8 @@ import struct
 # type extension
 from typing import TypeVar, Callable, Any
 from abc import ABC, abstractmethod
+# match string
+import re
 
 # serial
 import serial
@@ -58,6 +60,8 @@ VSTAT = b"\x31" # statvfs
 GCI = b"\x40" # gc_info
 
 RST = b"\xff" # reset
+# Micropython match re-string
+MPY_PART = r"MicroPython.*\n>>>" # .* match any string, include \n
 
 class MpyFileOptError(Exception):
     pass
@@ -155,17 +159,20 @@ class MpyFileOpt:
     def _dev_wait_in_repl(self) -> None:
         """send interrupt until device in REPL mode"""
         start_time = time.perf_counter()
+        recs = ""
         while time.perf_counter() - start_time < self.wait_timeout:
-            time.sleep(0.05)
             self._com_write(TER_INTP)
-            if b"\n>>> " in self.ser.read_all():
-                
-                ## Special Code: If this code is not included, the serial port output error rate will reach 50%
-                time.sleep(0.1)
-                self.ser.reset_input_buffer()
-                ## Special Code End
-
-                break
+            time.sleep(0.05)
+            s = self.ser.read_all()
+            if s is not None:
+                recs += s.decode(encoding, "ignore")
+                # print(recs)
+                if re.search(MPY_PART, recs, re.DOTALL) is not None:
+                    ## Special Code: If this code is not included, the serial port output error rate will reach 50%
+                    time.sleep(0.1)
+                    self.ser.reset_input_buffer()
+                    ## Special Code End
+                    break
         else:
             raise TimeoutError("Wait time out.")
     def _dev_send_src(self) -> None:
@@ -1071,16 +1078,7 @@ class MpyFileOpt:
 
 
 
-def main():
-    import stat
-    import datetime
-    import traceback
-    import argparse
-    import shlex
-    import binascii
-    import math
-    import json
-    from io import BytesIO
+def main(argv: list[str]):
     # terminal codes
     ANSI_RESET_ALL          = "\x1b[0m"
     ANSI_COLOR_BLACK        = "\x1b[30m"
@@ -1099,7 +1097,6 @@ def main():
     ANSI_COLOR_LIGHT_PURPLE = "\x1b[95m"
     ANSI_COLOR_LIGHT_CYAN   = "\x1b[96m"
     ANSI_COLOR_LIGHT_WHITE  = "\x1b[97m"
-    #ANSI_CTRL_CLRLINE       = "\x1b[K"
     ANSI_CTRL_CLRLINE       = "\x1b[A1\r\x1b[K"
     ANSI_CTRL_HIDM          = "\x1b[?25l"
     ANSI_CTRL_SIDM          = "\x1b[?25h"
@@ -1110,10 +1107,6 @@ def main():
     ANSI_CHAR_PGLINE        = "\u2501"
     # colors
     ERROR_COLOR = ANSI_COLOR_RED
-
-    # stat_info
-    TYPE_DIR  = 0x4000
-    TYPE_FILE = 0x8000
 
     BASE_BI = 1024
     BASE_SI = 1000
@@ -1140,7 +1133,6 @@ def main():
 
 
     all_commands = ["help", "shell", "ver", "uname", "uid", "freq", "pwd", "cd", "ls", "tree", "write", "push", "read", "cat", "pull", "rm", "rmdir", "mkdir", "mv", "gc", "stat"]
-    argv = sys.argv[1:]
     colorful = False
     def logerr(msg, prefix = "Error: "):
         print((ERROR_COLOR if colorful else "") + prefix + msg + (ANSI_RESET_ALL if colorful else ""))
@@ -1464,8 +1456,6 @@ def main():
             return p0 + p1
         else:
             return p0 + "/" + p1
-    def mpy_last_path(p: str):
-        return "/".join(p.split("/")[:-1])
     last_cur = 0
     last_time = 0
     speed_ctl = []
@@ -2380,7 +2370,16 @@ def main():
     for subcmd_argv in subcmd_argv_list:
         match_subcmd(subcmd_argv)
 
-    opt.close()
+    opt.close(verbose=args.verbose)
 
 if __name__ == "__main__":
-    main()
+    import stat
+    import datetime
+    import traceback
+    import argparse
+    import shlex
+    import binascii
+    import math
+    import json
+    from io import BytesIO
+    main(sys.argv[1:])
