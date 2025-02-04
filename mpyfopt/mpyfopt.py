@@ -1078,7 +1078,17 @@ class MpyFileOpt:
 
 
 
-def main(argv: list[str]):
+if __name__ == "__main__":
+    import stat
+    import datetime
+    import traceback
+    import argparse
+    import shlex
+    import binascii
+    import math
+    import json
+    from io import BytesIO
+    argv = sys.argv[1:]
     # terminal codes
     ANSI_RESET_ALL          = "\x1b[0m"
     ANSI_COLOR_BLACK        = "\x1b[30m"
@@ -1164,7 +1174,7 @@ def main(argv: list[str]):
         return oocts
 
     main_parser = argparse.ArgumentParser(description = "Connect to MicroPython device and do something with subcommands.", epilog = "See README.md for more information.", add_help = True)
-    main_parser.add_argument("port", help="serial port")
+    main_parser.add_argument("-p" , "--port"              ,                                             default="",     help="serial port")
     main_parser.add_argument("-B" , "--baudrate"          , type=int,                                   default=115200, help="serial baudrate. default 115200")
     main_parser.add_argument("-P" , "--parity"            ,             choices=serial.Serial.PARITIES, default="N",    help="serial parity. default N")
     main_parser.add_argument("-S" , "--stopbits"          , type=float, choices=serial.Serial.STOPBITS, default=1,      help="serial stopbits. default 1")
@@ -1172,12 +1182,14 @@ def main(argv: list[str]):
     main_parser.add_argument("-Tw", "--write-timeout"     , type=float,                                 default=1,      help="serial write timeout. if 0, no timeout. default 0")
     main_parser.add_argument("-Tb", "--inter-byte-timeout", type=float,                                 default=0.1,    help="serial inter-byte timeout. default 0.1")
     main_parser.add_argument("-wt", "--wait-timeout"      , type=float,                                 default=10,     help="serial wait timeout. default 10")
+
+    main_parser.add_argument("--subcmd-help"              ,                                             default="",     help="print help message of subcommand")
     
     main_parser.add_argument("-pbmaxw", "--progressbar-maxwidth", type=int, default=50, help="progressbar max width. unit is chars. it must be > 0. default 50.")
     main_parser.add_argument("-pbminw", "--progressbar-minwidth", type=int, default=5, help="progressbar min width. unit is chars. it must be > 0. default 5.")
 
     main_parser.add_argument("-v" , "--verbose"           , action="store_true", help="output debug info")
-    main_parser.add_argument("-nc" , "--no-colorful"          , action="store_false", help="make output not colorful. if terminal not support ANSI color escape sequence, recommended select this option")
+    main_parser.add_argument("-nc" , "--no-colorful"      , action="store_false", help="make output not colorful. if terminal not support ANSI color escape sequence, recommended select this option")
     main_parser.add_argument("--version", action="version", version=f"{__version__}")
     
     # subcommand's parser must be named as subcmd_{subcommand}_parser format
@@ -1363,22 +1375,6 @@ def main(argv: list[str]):
         logerr("progressbar-maxwidth must be > 0")
     if progressbar_minwidth <= 0:
         logerr("progressbar-minwidth must be > 0")
-    try:
-        opt = MpyFileOpt(
-            args.port,
-            baudrate = args.baudrate,
-            parity = args.parity,
-            stopbits = args.stopbits,
-            timeout            = None if args.timeout            == 0.0 else args.timeout,
-            write_timeout      = None if args.write_timeout      == 0.0 else args.write_timeout,
-            inter_byte_timeout = None if args.inter_byte_timeout == 0.0 else args.inter_byte_timeout,
-            wait_timeout       = None if args.wait_timeout       == 0.0 else args.wait_timeout,
-
-            verbose = args.verbose,
-        )
-    except BaseException:
-        logerr(traceback.format_exc(), "")
-        exit(1)
     shell_workdir = ""
     rstcolor = ANSI_RESET_ALL if colorful else ""
     DIR_COLOR   = ANSI_COLOR_GREEN
@@ -2367,19 +2363,32 @@ def main(argv: list[str]):
                     print("")
                 continue
             match_subcmd(args)
+    if args.subcmd_help != "":
+        if args.subcmd_help == "*":
+            match_subcmd(["help"])
+        else:
+            match_subcmd(["help", args.subcmd_help[1:], "--usage"])
+        exit()
+    if args.port == "":
+        logerr("port is not specified")
+        exit(1)
+    try:
+        opt = MpyFileOpt(
+            args.port,
+            baudrate = args.baudrate,
+            parity = args.parity,
+            stopbits = args.stopbits,
+            timeout            = None if args.timeout            == 0.0 else args.timeout,
+            write_timeout      = None if args.write_timeout      == 0.0 else args.write_timeout,
+            inter_byte_timeout = None if args.inter_byte_timeout == 0.0 else args.inter_byte_timeout,
+            wait_timeout       = None if args.wait_timeout       == 0.0 else args.wait_timeout,
+
+            verbose = args.verbose,
+        )
+    except BaseException:
+        logerr(traceback.format_exc(), "")
+        exit(1)
     for subcmd_argv in subcmd_argv_list:
         match_subcmd(subcmd_argv)
 
     opt.close(verbose=args.verbose)
-
-if __name__ == "__main__":
-    import stat
-    import datetime
-    import traceback
-    import argparse
-    import shlex
-    import binascii
-    import math
-    import json
-    from io import BytesIO
-    main(sys.argv[1:])
