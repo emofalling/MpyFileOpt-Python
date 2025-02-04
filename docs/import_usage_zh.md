@@ -24,9 +24,9 @@ opt = mpyfopt.MpyFileOpt(port: str,
 参数：
 
 - `port`: 串口名
-- `baudrate`: 波特率，对于几乎所有micropython设备应为115200
-- `parity`: 奇偶校验，对于几乎所有micropython设备应为无校验(`serial.PARITY_NONE`)
-- `stopbits`: 停止位，对于几乎所有micropython设备应为1
+- `baudrate`: 波特率。对于几乎所有micropython设备应为115200
+- `parity`: 奇偶校验。对于几乎所有micropython设备应为无校验(`serial.PARITY_NONE`)
+- `stopbits`: 停止位。对于几乎所有micropython设备应为1
 - `timeout`: 超时时间，单位秒。禁用超时时，该参数应为`None`
 - `write_timeout`: 写入超时时间，单位秒。禁用超时时，该参数应为`None`
 - `inter_byte_timeout`: 字节间隔超时时间，单位秒。禁用超时时，该参数应为`None`
@@ -37,7 +37,7 @@ opt = mpyfopt.MpyFileOpt(port: str,
 
 ## 方法
 
-### 工具
+### 连接
 
 ```python
 opt.connect(*, verbose: bool = True) -> None
@@ -48,6 +48,8 @@ opt.connect(*, verbose: bool = True) -> None
 参数：
 
 - `verbose`: 是否打印调试信息。若出现异常情况，可以设为`True`以查看调试信息
+
+### 关于此工具
 
 ```python
 opt.get_source_version(*, verbose: bool = False) -> tuple[int, int]
@@ -185,7 +187,7 @@ opt.upload(mpy_dst_file: str | bytes | bytearray, src_fp: SupportsReadBinaryIO, 
 - `src_fp`: 可读二进制IO对象。将从此对象读取`src_size`字节的数据
 - `src_size`: 待上传的数据大小。单位字节。
 - `write_callback_function`: 回调函数。当一个块上传完毕时，会调用该函数，函数定义通常为`write_callback_function(total, cur)`，其中`total`为数据总大小（=`src_size`），`cur`为当前已上传的数据大小，单位字节
-- `block_size`: 块大小。单位字节。较大的块可以提高上传速度，但设备上报`MemoryError`的可能性也就越高。建议值取决于堆内存大小。默认值为4096。
+- `block_size`: 块大小。单位字节。较大的块可以提高上传速度，但设备报错`MemoryError`的可能性也就越高。建议值取决于堆内存大小。默认值为4096。
 - `verbose`: 是否打印调试信息。若出现异常情况，可以设为`True`以查看调试信息
 
 ```python
@@ -200,7 +202,7 @@ opt.download(mpy_src_file: str | bytes | bytearray, dst_fp: SupportsWriteBinaryI
 - `mpy_src_file`: micropython设备上的源文件路径。应为有效文件路径
 - `dst_fp`: 可写二进制IO对象。将向此对象写入文件内容
 - `read_callback_function`: 回调函数。当读取了1个块时，会调用该函数，函数定义通常为`read_callback_function(total, cur)`，其中`total`为文件总大小，`cur`为当前已读取的数据大小，单位字节
-- `block_size`: 块大小。单位字节。较大的块可以提高下载速度，但设备上报`MemoryError`的可能性也就越高。建议值取决于堆内存大小。默认值为4096。
+- `block_size`: 块大小。单位字节。较大的块可以提高下载速度，但设备报错`MemoryError`的可能性也就越高。建议值取决于堆内存大小。默认值为4096。
 - `verbose`: 是否打印调试信息。若出现异常情况，可以设为`True`以查看调试信息
 
 ### 路径
@@ -300,7 +302,7 @@ opt.get_gc_info(collect: bool = True, *, verbose: bool = False) -> gc_info
 
 返回值：
 
-- 堆内存信息。`used`属性为已使用堆内存大小，`free`属性为堆内存大小，单位字节。
+- 堆内存信息。`used`属性为已用堆内存大小，`free`属性为可用堆内存大小，单位字节。
 
 ### 断开连接
 
