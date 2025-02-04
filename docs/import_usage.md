@@ -177,7 +177,6 @@ Result:
 ```python
 opt.upload(mpy_dst_file: str | bytes | bytearray, src_fp: SupportsReadBinaryIO, src_size: int, write_callback_function: Callable[[int, int], None] = None, block_size: int = 4096, *, verbose: bool = False) -> None
 # SupportsReadBinaryIO: Readable binary IO object that includes methods such as read, readinto, and readable.
-
 ```
 
 Upload a file from the local machine to the micropython device ([`open(mpy_dst_file,"wb")`](https://docs.micropython.org/en/latest/library/builtins.html#open), but the data to be written is uploaded from the local machine).
@@ -194,8 +193,6 @@ Args:
 ```python
 opt.download(mpy_src_file: str | bytes | bytearray, dst_fp: SupportsWriteBinaryIO, read_callback_function: Callable[[int, int], None] = None, block_size: int = 4096, *, verbose: bool = False) -> None
 # SupportsWriteBinaryIO: Writable binary IO object that includes methods such as write and writable.
-
-
 ```
 
 Download a file from the micropython device to the local machine ([`open(mpy_src_file,"rb")`](https://docs.micropython.org/en/latest/library/builtins.html#open), but the data is read from the micropython device).
