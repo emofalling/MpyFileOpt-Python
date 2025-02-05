@@ -1178,8 +1178,8 @@ if __name__ == "__main__":
     main_parser.add_argument("-B" , "--baudrate"          , type=int,                                   default=115200, help="serial baudrate. default 115200")
     main_parser.add_argument("-P" , "--parity"            ,             choices=serial.Serial.PARITIES, default="N",    help="serial parity. default N")
     main_parser.add_argument("-S" , "--stopbits"          , type=float, choices=serial.Serial.STOPBITS, default=1,      help="serial stopbits. default 1")
-    main_parser.add_argument("-To", "--timeout"           , type=float,                                 default=1,      help="serial timeout. if 0, no timeout. default 0")
-    main_parser.add_argument("-Tw", "--write-timeout"     , type=float,                                 default=1,      help="serial write timeout. if 0, no timeout. default 0")
+    main_parser.add_argument("-To", "--timeout"           , type=float,                                 default=1,      help="serial timeout. if 0, no timeout. default 1")
+    main_parser.add_argument("-Tw", "--write-timeout"     , type=float,                                 default=1,      help="serial write timeout. if 0, no timeout. default 1")
     main_parser.add_argument("-Tb", "--inter-byte-timeout", type=float,                                 default=0.1,    help="serial inter-byte timeout. default 0.1")
     main_parser.add_argument("-wt", "--wait-timeout"      , type=float,                                 default=10,     help="serial wait timeout. default 10")
 
