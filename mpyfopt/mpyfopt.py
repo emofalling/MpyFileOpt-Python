@@ -1174,6 +1174,8 @@ if __name__ == "__main__":
         return oocts
 
     main_parser = argparse.ArgumentParser(description = "Connect to MicroPython device and do something with subcommands.", epilog = "See README.md for more information.", add_help = True)
+    main_parser.add_argument("--subcmd-help"              ,                                             default="",     help="print help message of subcommand")
+    main_parser.add_argument("--version", action="version", version=f"{__version__}")
     main_parser.add_argument("-p" , "--port"              ,                                             default="",     help="serial port")
     main_parser.add_argument("-B" , "--baudrate"          , type=int,                                   default=115200, help="serial baudrate. default 115200")
     main_parser.add_argument("-P" , "--parity"            ,             choices=serial.Serial.PARITIES, default="N",    help="serial parity. default N")
@@ -1183,14 +1185,12 @@ if __name__ == "__main__":
     main_parser.add_argument("-Tb", "--inter-byte-timeout", type=float,                                 default=0.1,    help="serial inter-byte timeout. default 0.1")
     main_parser.add_argument("-wt", "--wait-timeout"      , type=float,                                 default=10,     help="serial wait timeout. default 10")
 
-    main_parser.add_argument("--subcmd-help"              ,                                             default="",     help="print help message of subcommand")
     
     main_parser.add_argument("-pbmaxw", "--progressbar-maxwidth", type=int, default=50, help="progressbar max width. unit is chars. it must be > 0. default 50.")
     main_parser.add_argument("-pbminw", "--progressbar-minwidth", type=int, default=5, help="progressbar min width. unit is chars. it must be > 0. default 5.")
 
-    main_parser.add_argument("-v" , "--verbose"           , action="store_true", help="output debug info")
     main_parser.add_argument("-nc" , "--no-colorful"      , action="store_false", help="make output not colorful. if terminal not support ANSI color escape sequence, recommended select this option")
-    main_parser.add_argument("--version", action="version", version=f"{__version__}")
+    main_parser.add_argument("-v" , "--verbose"           , action="store_true", help="output debug info")
     
     # subcommand's parser must be named as subcmd_{subcommand}_parser format
 
@@ -1632,7 +1632,7 @@ if __name__ == "__main__":
                     print(f"{__version__},{srcver[0]}.{srcver[1]}")
                 else:
                     print(f"mpyfopt version: {__version__}")
-                    print(f"source version: {srcver[0]}.{srcver[1]}")
+                    print(f"   code version: {srcver[0]}.{srcver[1]}")
             case "uname":
                 s_args = subcmd_parse_args(subcmd_uname_parser, subcmd_argv)
                 if not s_args: return
