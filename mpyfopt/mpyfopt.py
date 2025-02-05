@@ -1888,7 +1888,7 @@ if __name__ == "__main__":
                                     if cw >= (ter_w - namemax):
                                         print()
                                         cw = 0
-                    if not any([s_args.row, s_args.column, s_args.long, s_args.json]):
+                    if not any([s_args.column,  s_args.json]):
                         print()
                     if s_args.recursive:
                         if not s_args.json: print()
@@ -2039,14 +2039,14 @@ if __name__ == "__main__":
                             _subcmd_write_lfunc(s_args, fp, s)
                         elif stat.S_ISDIR(s_stat.st_mode):
                             _countinfo[0] += 1
-                            if s_args.no_recursive:
-                                continue
                             try:
                                 dp = mpy_path_append(dst, os.path.basename(s))
                                 print("Create directory:", dp)
                                 opt.mkdir(dp, verbose = s_args.verbose)
                             except BaseException:
                                 logerr(traceback.format_exc(), "")
+                            if s_args.no_recursive:
+                                continue
                             try:
                                 dlist = os.listdir(s)
                             except BaseException:
@@ -2117,9 +2117,8 @@ if __name__ == "__main__":
                             _countinfo[1] += 1
                             _subcmd_read_lfunc(s_args, fp, s)
                         elif stat.S_ISDIR(st.st_mode):
-                            if s_args.no_recursive:
-                                continue
                             if s_args.verbose: print("Read item listdir:", s)
+                            _countinfo[0] += 1
                             try:
                                 dp = os.path.join(dst, os.path.basename(s))
                                 print("Create directory:", dp)
@@ -2127,11 +2126,12 @@ if __name__ == "__main__":
                                     print("Warning: destination path is same as source path", "")
                                 else:
                                     os.mkdir(dp)
+                                if s_args.no_recursive:
+                                    continue
                                 dlist = opt.ilistdir(s, verbose = s_args.verbose)
                             except BaseException:
                                 logerr(traceback.format_exc(), "")
                                 continue
-                            _countinfo[0] += 1
                             for d in dlist:
                                 __subcmd_pull_lfunc(s_args, os.path.join(dst, os.path.basename(s)), [mpy_path_append(s, d.name)], _countinfo)
                         else:

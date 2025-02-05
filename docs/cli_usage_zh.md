@@ -23,7 +23,7 @@ mpyfopt -p /dev/ttyUSB1 -To 20 write ./main.py ./your_project/main.py # mpyfopt 
 mpyfopt -p /dev/ttyUSB0 -To 10 cd ./lib/your_module cat README.md # mpyfopt -p /dev/ttyUSB0 -To 10 -> cd ./lib/your_module -> cat README.md
 ```
 
-由于子命令分隔方式为直接命令名匹配，所以在一些特殊情况下，命令的解析可能不会符合预期。例如：
+由于子命令分隔方式为直接命令名匹配，所以在某些情况下，命令的解析可能不会符合预期。例如：
 
 ```shell
 mpyfopt -p /dev/ttyUSB0 push ./receive push # mpyfopt -p /dev/ttyUSB0 -> push ./receive -> push
@@ -66,7 +66,7 @@ mpyfopt [-h] [--subcmd-help SUBCMD_HELP] [--version]
 
 ## 子命令及其参数
 
-注：标`*`的子命令为类[GNU](https://www.gnu.org/)子命令，其命令格式与**GNU工具集**中的对应命令格式相似，但并非完全相同。
+注：标`*`的子命令为类[GNU](https://www.gnu.org/)子命令，其命令格式和输出格式与**GNU工具集**中的对应命令格式和输出格式相似，但并非完全相同。
 
 ### `shell`
 
@@ -86,7 +86,7 @@ shell类似于：
 / >
 ```
 
-其中，`/`表示当前工作目录。
+其中，`/`表示当前设备工作目录。
 
 通过shell键入子命令的示例：
 
@@ -202,3 +202,194 @@ freq [-h] [-r] [-v]
 ```text
 240000000
 ```
+
+### `pwd`*
+
+```shell
+pwd [-h] [-l] [-v]
+```
+
+输出当前工作目录。
+
+参数&选项：
+
+- `-h`,`--help`: 显示帮助信息并退出。
+- `-l`,`--local`: 若指定，则输出本机工作目录，否则输出设备工作目录。
+- `-v`,`--verbose`: 输出调试信息。
+
+### `cd`*
+
+```shell
+cd [dir] [-h] [-l] [-v]
+```
+
+更改当前工作目录。
+
+参数&选项：
+
+- `dir`: 要更改到的目录。
+- `-h`,`--help`: 显示帮助信息并退出。
+- `-l`,`--local`: 若指定，则更改本机工作目录，否则更改设备工作目录。
+- `-v`,`--verbose`: 输出调试信息。
+
+### `ls`*
+
+```shell
+ls [dir] [-h] [-a] [-R] [-l] [-S | -N] [-r] [--row | -c] [--sep SEP] [-sC] [-Q] [-s] [-si | -bi] [-dp DECIMAL_PLACES] [-J] [-v]
+```
+
+列出设备上指定目录下的项。
+
+参数&选项：
+
+- `dir`: 要列出的目录。不指定则列出当前工作目录。
+- `-h`,`--help`: 显示帮助信息并退出。
+- `-a`,`--all`: 显示所有项，包括隐藏项。
+- `-R`,`--recursive`: 递归列出目录。
+- `-l`,`--long`: 显示项的详细信息。
+- `-S`,`--sort-size`: 按大小排序。
+- `-N`,`--sort-name`: 按名称排序。
+- `-r`,`--reverse`: 反转排序顺序。
+- `--row`: 将项显示在一行中。
+- `-c`,`--column`: 一行只显示一个项。
+- `--sep SEP`: 项之间最少的间隔空格数。必须大于等于0。默认为3。
+- `-sC`,`--sep-comma`: 使用逗号分隔项。
+- `-Q`,`--quote`: 在项周围加上引号。
+- `-s`,`--slash`: 在目录后添加`/`。
+- `-si`,`--si`: 使用SI单位。1k=1000。
+- `-bi`,`--bi`: 使用BI单位。1K=1024。
+- `-dp DECIMAL_PLACES`,`--decimal-places DECIMAL_PLACES`: 小数位数。必须大于等于-1。如果为-1，则小数位数无限制。默认为3。
+- `-J`,`--json`: 以JSON格式输出。
+- `-v`,`--verbose`: 输出调试信息。
+
+在未指定`--row`和`-c`(`--column`)时，输出类似于：
+```text
+Obloq.py             Servo.py             blynklib.py          blynktimer.py        dog
+face                 hcsr04.py            helloFly.py          ir_remote.py         lib
+main.py              microbit.py          mpython_ble          mpython_online.py    mpythonbox.py
+nplus                siot.py              smartcamera.py       smartcamera_new.py   tinywebio.py
+user.xml             uwebsockets          xgo.py               xunfei.py            yeelight.py
+```
+
+在指定`--row`时，输出类似于：
+
+```text
+Obloq.py   Servo.py   blynklib.py   blynktimer.py   dog   face   hcsr04.py   helloFly.py   ir_remote.py   lib   main.py   microbit.py   mpython_ble   mpython_online.py   mpythonbox.py   nplus   siot.py   smartcamera.py   smartcamera_new.py   tinywebio.py   user.xml   uwebsockets   xgo.py   xunfei.py   yeelight.py
+```
+
+在指定`-c`(`--column`)时，输出类似于：
+
+```text
+Obloq.py
+Servo.py
+blynklib.py
+blynktimer.py
+dog
+face
+hcsr04.py
+helloFly.py
+ir_remote.py
+lib
+main.py
+microbit.py
+mpython_ble
+mpython_online.py
+mpythonbox.py
+nplus
+siot.py
+smartcamera.py
+smartcamera_new.py
+tinywebio.py
+user.xml
+uwebsockets
+xgo.py
+xunfei.py
+yeelight.py
+```
+
+### `tree`*
+
+```shell
+tree [dir ...] [-h] [-sl] [-hl HLINE_LEN] [--noreport] [-Q] [-L LEVEL] [-J | -X] [-v]
+```
+
+以树状结构列出设备上指定目录下的项。
+
+参数&选项：
+
+- `dir`: 要列出的目录。不指定则列出当前工作目录。
+- `-h`,`--help`: 显示帮助信息并退出。
+- `-sl`,`--slash`: 在目录后添加`/`。
+- `-hl HLINE_LEN`,`--hline-len HLINE_LEN`: 每个项的水平线长度。必须大于等于0。默认为2。
+- `--noreport`: 关闭树状结构列表末尾的文件/目录计数。
+- `-Q`,`--quote`: 在项周围加上引号。
+- `-L LEVEL`,`--level LEVEL`: 目录树的最大遍历深度。必须大于0。默认不限制。
+- `-J`,`--json`: 以JSON格式输出。
+- `-X`,`--xml`: 以XML格式输出。
+- `-v`,`--verbose`: 输出调试信息。
+
+在未指定`--noreport`时，输出类似于：
+
+```text
+./lib
+├── k210_ai
+│   ├── __init__.py
+│   ├── ai.py
+│   ├── asr.py
+│   └── public.py
+├── k210
+│   ├── Easy_AI.py
+│   ├── __init__.py
+│   ├── asr.py
+│   ├── color.py
+│   ├── face_recognization.py
+│   ├── image.py
+│   ├── kpu.py
+│   ├── lcd.py
+│   ├── peripheral.py
+│   ├── qrcode.py
+│   ├── self_learning_classifier.py
+│   └── sensor.py
+└── repl.py
+3 directories, 17 files
+```
+
+### `write`
+
+```shell
+write [-h] [-b BLOCKSIZE] [-q] [--noreport] [-w] [-v] dst src
+```
+
+将本地文件写入设备文件。
+
+参数&选项：
+
+- `dst`: 要写入的设备文件。
+- `src`: 要传输的本地文件。
+- `-b BLOCKSIZE`,`--blocksize BLOCKSIZE`: 写入块大小。更大的块大小可以带来更快的传输速度，但设备需要更多的内存。默认为4096。
+- `-q`,`--quiet`: 不显示进度条，不输出报告。
+- `--noreport`: 不输出报告。
+- `-w`,`--warning`: 如果目标文件存在，用户可以选择是否覆盖它。如果未指定，则始终覆盖它。
+
+当该命令正常执行时，它将会把本地文件`src`中的内容传输并写入到目标设备的文件`dst`中。
+
+### `push`
+
+```shell
+push [-h] [-b BLOCKSIZE] [-nr] [-q] [--noreport] [-w] [-v] dst src [src ...]
+```
+
+将本地文件或目录推送到设备上。
+
+参数&选项：
+
+- `dst`: 要接收项的目标设备路径。
+- `src`: 要推送到本地主机的项。可以是文件或目录。应至少有一个项。
+- `-b BLOCKSIZE`,`--blocksize BLOCKSIZE`: 推送块大小。更大的块大小可以带来更快的传输速度，但设备需要更多的内存。默认为4096。
+- `-nr`,`--no-recursive`: 当推送目录时，不递归推送子项。
+- `-q`,`--quiet`: 不显示进度条，不输出报告。
+- `--noreport`: 不输出报告。
+- `-w`,`--warning`: 如果目标文件存在，用户可以选择是否覆盖它。如果未指定，则始终覆盖它。
+- `-v`,`--verbose`: 输出调试信息。
+
+当该命令正常执行时，它将会把本地`src`中的所有项目推送到目标设备的路径`dst`中。
