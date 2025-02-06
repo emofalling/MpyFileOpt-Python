@@ -2,6 +2,8 @@
 
 🌐 [简体中文](./cli_usage_zh.md)
 
+🔙 [Back](../README.md)
+
 Note: If you are using `mpyfopt` by locating the directory instead of installing it, then `mpyfopt` in all commands below should be replaced with `./mpyfopt.py` or `.\mpyfopt.py` (as appropriate).
 
 ## Command rule

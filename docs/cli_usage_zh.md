@@ -2,6 +2,8 @@
 
 🌐 [English](./cli_usage.md)
 
+🔙 [返回](../README_zh.md)
+
 注意：如果是通过定位目录而非安装的方式使用`mpyfopt`，则下文所有命令中的`mpyfopt`应替换为`./mpyfopt.py`或`.\mpyfopt.py`（视情况而定）。
 
 ## 命令规则
