@@ -1322,8 +1322,8 @@ if __name__ == "__main__":
     subcmd_rm_parser.add_argument("paths", nargs="+", help="Items to remove on device. It can be files or directories")
     subcmd_rm_parser.add_argument("-v", "--verbose", action="store_true", help="output debug info")
     # rmdir
-    subcmd_rmdir_parser = argparse.ArgumentParser("rmdir", description="Remove non-empty directory on device", epilog="See README.md for more information.", add_help = True)
-    subcmd_rmdir_parser.add_argument("dirs", nargs="+", help="Items to remove on device. It can be files or directories")
+    subcmd_rmdir_parser = argparse.ArgumentParser("rmdir", description="Remove empty directory on device", epilog="See README.md for more information.", add_help = True)
+    subcmd_rmdir_parser.add_argument("dirs", nargs="+", help="Directories to remove on device. It must be only directories")
     subcmd_rmdir_parser.add_argument("-v", "--verbose", action="store_true", help="output debug info")
     # mkdir
     subcmd_mkdir_parser = argparse.ArgumentParser("mkdir", description="Make directory on device", epilog="See README.md for more information.", add_help = True)
@@ -2260,7 +2260,7 @@ if __name__ == "__main__":
                     suf_t, suf_f, suf_u = "bytes", "bytes", "bytes"
                     total_c = total; free_c = free; used_c = used
                 if s_args.csv:
-                    print(total_c, free_c, used_c)
+                    print(f"{total_c},{free_c},{used_c}")
                 else:
                     print(f"Total: {total} {suf_t}")
                     print(f" Free: {free} {suf_f}")
@@ -2280,7 +2280,7 @@ if __name__ == "__main__":
                         print(f"    ID: /    Namelen: {st.f_namemax:<10}  Flag: {st.f_flag if st.f_flag>0 else "/"}")
                         print(f"Block size: {st.f_bsize:<10}  Fundamental block size: {st.f_frsize}")
                         print(f"Blocks: {st.f_blocks:<10}  Free: {st.f_bfree:<10}  Available: {st.f_bavail}")
-                        print(f" Files: {st.f_files:<10}  Free: {st.f_ffree}")
+                        print(f" Files: {st.f_files if st.f_files>0 else '/':<10}  Free: {st.f_ffree if st.f_files>0 else '/':<10}  Available: {st.f_favail if st.f_files>0 else '/'}")
                     else:
                         try:
                             st = opt.stat(p, verbose = s_args.verbose)
