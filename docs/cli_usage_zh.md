@@ -14,8 +14,8 @@ mpyfopt <args> {<subcommand> <subcommand_args>}*n
 当`mpyfopt`正常工作时，它先根据`<args>`中的参数连接micropython设备，然后按顺序执行`<subcommand>`及其参数`<subcommand_args>`。
 
 关于`<args>`，请参考命令`mpyfopt --help`的输出。  
-关于`<subcommand>`，请参考命令`mpyfopt --subcmd-help *`的输出和下文**子命令**章节。
-关于`<subcommand_args>`，请参考命令`mpyfopt --subcmd-help :<subcommand>`的输出(如`mpyfopt --subcmd-help :cd`)和下文**子命令**章节。
+关于`<subcommand>`，请参考命令`mpyfopt --subcmd-help *`的输出和下文**子命令及其参数**章节。
+关于`<subcommand_args>`，请参考命令`mpyfopt --subcmd-help :<subcommand>`的输出(如`mpyfopt --subcmd-help :cd`)和下文**子命令及其参数**章节。
 
 例如：
 
