@@ -1,3 +1,5 @@
+VERSION 1.0
+
 #CODES:
     ANS aaH
     ERR (likely)ffH

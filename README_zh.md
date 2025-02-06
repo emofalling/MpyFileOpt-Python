@@ -1,6 +1,8 @@
 # `MpyFileOpt`——高效的micropython设备文件系统管理工具
 
-一个用于管理micropython设备文件系统的工具，支持文件上传、下载、删除、查看、重命名、创建文件夹等针对文件和文件夹的操作。
+🌐 [English](./README.md)
+
+该工具是一个用于管理micropython设备文件系统的工具，支持文件上传、下载、删除、查看、重命名、创建文件夹等针对文件系统的操作。
 
 特点：
 
@@ -36,6 +38,23 @@ cd ./MpyFileOpt-Python/mpyfopt
 mpyfopt --help
 ```
 
+使用示例：
+
+```shell
+~/myproject/micropython/mpyzip $ mpyfopt -p /dev/ttyUSB3 ls
+boot.py    lib    main.py    mpyzip.mpy
+~/myproject/micropython/mpyzip $ mpyfopt -p /dev/ttyUSB3 shell
+/ > push / ./tests/test_unzip.zip
+Write file: /test_unzip.zip
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 60.64/60.64 KB 8.89 KB/s eta 0:00:00
+Wrote in 8.32 seconds, average speed: 8.41 KB/s
+Total report: Wrote 0 directories, 1 files
+/ > ls
+boot.py    lib    main.py    mpyzip.mpy    test_unzip.zip
+/ > exit
+~/myproject/micropython/mpyzip $
+```
+
 关于`mpyfopt`的命令行方式详细使用方法，请参阅[MpyFileOpt命令行用法](./docs/cli_usage_zh.md)
 
 ### 以导入方式使用
@@ -47,3 +66,17 @@ import mpyfopt
 ```
 
 关于`mpyfopt`的导入方式详细使用方法，请参阅[MpyFileOpt导入用法](./docs/import_usage_zh.md)
+
+## 附录
+
+### 关于块大小的选择
+
+具体取决于设备。
+
+在读取时，块大小越大，读取速度越快，但会逐渐趋向一个临界点$^1$。  
+在写入时，块大小在某一临界点$^2$时速度最快，但超过或小于该临界点时，速度会降低。
+
+无论是读取还是写入，块大小过大时，设备会抛出`MemoryError`错误（但不必担心，`mpyfopt`完善的异常处理机制使得其难以由于错误导致崩溃），从而无法读取。  
+
+$^1$: 波特率 ÷ 8，单位为`B/s`。当波特率为`115200`时，该临界点为`14.4KB/s`(`1K=1024`)。  
+$^2$: 取决于设备。实测得块大小为`4096`字节时能确保对于大部分设备都接近该临界点。
