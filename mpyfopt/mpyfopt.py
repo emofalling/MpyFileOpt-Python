@@ -26,6 +26,8 @@ encoding = "utf-8"
 # Serial Terminal Codes
 TER_INTP = b"\x03" # Terminal_Interrupt
 TER_NEWL = b"\r\n" # Terminal_NewLine
+# Serial None Parity
+SER_PARITY_NONE = serial.PARITY_NONE
 # Commands
 ANS = b"\xaa" # Answer
 ERR = b"\xff" # Error
@@ -99,7 +101,7 @@ class MpyFileOpt:
     def __init__(self, 
                  port: str, 
                  baudrate: int                  = 115200, 
-                 parity: str                    = serial.PARITY_NONE, 
+                 parity: str                    = SER_PARITY_NONE, 
                  stopbits: float                = 1, 
                  timeout: int | None            = 1, 
                  write_timeout: int | None      = 1,
@@ -1076,9 +1078,7 @@ class MpyFileOpt:
         if self.ser.is_open:
             self.close()
 
-
-
-if __name__ == "__main__":
+def main():
     import stat
     import datetime
     import traceback
@@ -1141,6 +1141,199 @@ if __name__ == "__main__":
         else:
             return reprobj
 
+    main_parser = argparse.ArgumentParser(description = "Connect to MicroPython device and do something with subcommands.", epilog = "See README.md for more information.", add_help = True)
+    main_parser.add_argument("--subcmd-help"              ,                                             default="",              help="print help message of subcommand")
+    main_parser.add_argument("--version", action="version", version=f"{__version__}")
+    main_parser.add_argument("-p" , "--port"              ,                                             default="",              help="serial port")
+    main_parser.add_argument("-B" , "--baudrate"          , type=int,                                   default=115200,          help="serial baudrate. default 115200")
+    main_parser.add_argument("-P" , "--parity"            ,             choices=serial.Serial.PARITIES, default=SER_PARITY_NONE, help="serial parity. default N")
+    main_parser.add_argument("-S" , "--stopbits"          , type=float, choices=serial.Serial.STOPBITS, default=1,               help="serial stopbits. default 1")
+    main_parser.add_argument("-To", "--timeout"           , type=float,                                 default=1,               help="serial timeout. if 0, no timeout. default 1")
+    main_parser.add_argument("-Tw", "--write-timeout"     , type=float,                                 default=1,               help="serial write timeout. if 0, no timeout. default 1")
+    main_parser.add_argument("-Tb", "--inter-byte-timeout", type=float,                                 default=0.1,             help="serial inter-byte timeout. default 0.1")
+    main_parser.add_argument("-wt", "--wait-timeout"      , type=float,                                 default=10,              help="serial wait timeout. default 10")
+
+    
+    main_parser.add_argument("-pbmaxw", "--progressbar-maxwidth", type=int, default=50, help="progressbar max width. unit is chars. it must be > 0. default 50.")
+    main_parser.add_argument("-pbminw", "--progressbar-minwidth", type=int, default=5, help="progressbar min width. unit is chars. it must be > 0. default 5.")
+
+    main_parser.add_argument("-nc" , "--no-colorful"      , action="store_false", help="make output not colorful. if terminal not support ANSI color escape sequence, recommended select this option")
+    main_parser.add_argument("-v" , "--verbose"           , action="store_true", help="output debug info")
+    
+    parser_dict = {}
+
+    # help
+    subcmd_help_parser = argparse.ArgumentParser("help", description = "Print help message of subcommand.", epilog = "See README.md for more information.", add_help = True)
+    subcmd_help_parser.add_argument("cmds", nargs="*", help="subcommands to print help message. if not specified, print help message of all subcommands.")
+    subcmd_help_parser.add_argument("-u", "--usage", action="store_true", help="print usage")
+    parser_dict["help"]=subcmd_help_parser
+    # shell
+    subcmd_shell_parser = argparse.ArgumentParser("shell", description = "Into a shell to key and run subcommands conveniently.", epilog = "See README.md for more information.", add_help = True)
+    parser_dict["shell"]=subcmd_shell_parser
+    # shell-exit
+    subcmd_shell_exit_parser = argparse.ArgumentParser("exit", description = "Exit shell.", epilog = "See README.md for more information.", add_help = True)
+    # ver
+    subcmd_ver_parser = argparse.ArgumentParser("ver", description="Print version of this project", epilog="See README.md for more information.", add_help = True)
+    subcmd_ver_parser.add_argument("-c", "--csv", action="store_true", help="output csv format")
+    subcmd_ver_parser.add_argument("-v", "--verbose", action="store_true", help="output debug info")
+    parser_dict["ver"]=subcmd_ver_parser
+    # uname
+    subcmd_uname_parser = argparse.ArgumentParser("uname", description="Print device's system information. if no option(except --csv(-c) and --verbose), output kernel name.", epilog="See README.md for more information.", add_help = True)
+    subcmd_uname_parser.add_argument("-a", "--all", action="store_true", help="output all information")
+    subcmd_uname_parser.add_argument("-s", "--kernel-name", action="store_true", help="output the kernel name. this is the normal option")
+    subcmd_uname_parser.add_argument("-n", "--nodename", action="store_true", help="output the network node hostname")
+    subcmd_uname_parser.add_argument("-r", "--kernel-release", action="store_true", help="output the kernel release")
+    subcmd_uname_parser.add_argument("-v", "--kernel-version", action="store_true", help="output the kernel version")
+    subcmd_uname_parser.add_argument("-m", "--machine", action="store_true", help="output the machine hardware name")
+    subcmd_uname_parser.add_argument("-c", "--csv", action="store_true", help="output csv format")
+    subcmd_uname_parser.add_argument(      "--verbose", action="store_true", help="output debug info")
+    parser_dict["uname"]=subcmd_uname_parser
+    # uid
+    subcmd_uid_parser = argparse.ArgumentParser("uid", description="Print device's unique id", epilog="See README.md for more information.", add_help = True)
+    subcmd_uid_parser.add_argument("-v", "--verbose", action="store_true", help="output debug info")
+    parser_dict["uid"]=subcmd_uid_parser
+    # freq
+    subcmd_freq_parser = argparse.ArgumentParser("freq", description="Print device's cpu frequency", epilog="See README.md for more information.", add_help = True)
+    subcmd_freq_parser.add_argument("-r", "--raw", action="store_true", help="output raw cpu frequency. it has no suffix, unit Hz.")
+    subcmd_freq_parser.add_argument("-v", "--verbose", action="store_true", help="output debug info")
+    parser_dict["freq"]=subcmd_freq_parser
+    # pwd
+    subcmd_pwd_parser = argparse.ArgumentParser("pwd", description="Print device's current working directory", epilog="See README.md for more information.", add_help = True)
+    subcmd_pwd_parser.add_argument("-l", "--local", action="store_true", help="output localhost's current working directory")
+    subcmd_pwd_parser.add_argument("-v", "--verbose", action="store_true", help="output debug info")
+    parser_dict["pwd"]=subcmd_pwd_parser
+    # cd
+    subcmd_cd_parser = argparse.ArgumentParser("cd", description="Change device's current working directory", epilog="See README.md for more information.", add_help = True)
+    subcmd_cd_parser.add_argument("dir", nargs="?", default="/", help="dir to change to. if not specified, change to /")
+    subcmd_cd_parser.add_argument("-l", "--local", action="store_true", help="output localhost's current working directory")
+    subcmd_cd_parser.add_argument("-v", "--verbose", action="store_true", help="output debug info")
+    parser_dict["cd"]=subcmd_cd_parser
+    # ls
+    subcmd_ls_parser = argparse.ArgumentParser("ls", description="List device's files and directories", epilog="See README.md for more information.", add_help = True)
+    subcmd_ls_parser.add_argument("-a", "--all", action="store_true", help="show all files and directories, including hidden ones")
+    subcmd_ls_parser.add_argument("-R", "--recursive", action="store_true", help="recursively list directories")
+    subcmd_ls_parser.add_argument("-l", "--long", action="store_true", help="show detailed information about files and directories")
+    subcmd_ls_sort_parser_group = subcmd_ls_parser.add_mutually_exclusive_group()
+    subcmd_ls_sort_parser_group.add_argument("-S", "--sort-size", action="store_true", help="sort by size")
+    subcmd_ls_sort_parser_group.add_argument("-N", "--sort-name", action="store_true", help="sort by name")
+    subcmd_ls_parser.add_argument("-r", "--reverse", action="store_true", help="reverse the order of the sort")
+    subcmd_ls_pack_parser_group = subcmd_ls_parser.add_mutually_exclusive_group()
+    subcmd_ls_pack_parser_group.add_argument(      "--row", action="store_true", help="only show itesms in a single row")
+    subcmd_ls_pack_parser_group.add_argument("-c", "--column", action="store_true", help="only show itesms in a single column")
+    subcmd_ls_parser.add_argument("--sep", default=3, type=int, help="number of spaces between items. It must be >= 0. default 3")
+    subcmd_ls_parser.add_argument("-sC", "--sep-comma", action="store_true", help="use comma as separator")
+    subcmd_ls_parser.add_argument("-Q", "--quote", action="store_true", help="quote items")
+    subcmd_ls_parser.add_argument("-s", "--slash", action="store_true", help="append / to directories")
+    subcmd_ls_size_parser_group = subcmd_ls_parser.add_mutually_exclusive_group()
+    subcmd_ls_size_parser_group.add_argument("-si", "--si", action="store_true", help="use SI units. 1K = 1000")
+    subcmd_ls_size_parser_group.add_argument("-bi", "--bi", action="store_true", help="use binary units. 1K = 1024")
+    subcmd_ls_parser.add_argument("-dp", "--decimal-places", default=3, type=int, help="number of decimal places. It must be >= -1. if it is -1, the decimal places is no limits. default 3")
+    subcmd_ls_parser.add_argument("-J", "--json", action="store_true", help="output json format")
+    subcmd_ls_parser.add_argument("dir", nargs="?", default=".", help="dir to list. if not specified, list .")
+    subcmd_ls_parser.add_argument("-v", "--verbose", action="store_true", help="output debug info")
+    parser_dict["ls"]=subcmd_ls_parser
+    # tree
+    subcmd_tree_parser = argparse.ArgumentParser("tree", description="List device's files and directories in tree format", epilog="See README.md for more information.", add_help = True)
+    subcmd_tree_parser.add_argument("-sl", "--slash", action="store_true", help="append / to directories")
+    subcmd_tree_parser.add_argument("-hl", "--hline-len", default=2, type=int, help="number of horizontal line with every items. It must be >= 0. default 2")
+    subcmd_tree_parser.add_argument("--noreport", action="store_true", help="Turn off file/directory count at end of tree listing")
+    subcmd_tree_parser.add_argument("-Q", "--quote", action="store_true", help="quote items")
+    subcmd_tree_parser.add_argument("-L", "--level", default=-1, type=int, help="max display depth of the directory tree. It must be > 0. default not limited")
+    subcmd_tree_outfmt_parser_group = subcmd_tree_parser.add_mutually_exclusive_group()
+    subcmd_tree_outfmt_parser_group.add_argument("-J", "--json", action="store_true", help="output json format")
+    subcmd_tree_outfmt_parser_group.add_argument("-X", "--xml", action="store_true", help="output xml format")
+    subcmd_tree_parser.add_argument("dir", nargs="*", default=["."], help="dir to list. if not specified, list .")
+    subcmd_tree_parser.add_argument("-v", "--verbose", action="store_true", help="output debug info")
+    parser_dict["tree"]=subcmd_tree_parser
+    # write
+    subcmd_write_parser = argparse.ArgumentParser("write", description="Write file to file on device", epilog="See README.md for more information.", add_help = True)
+    subcmd_write_parser.add_argument("-b", "--blocksize", type=int, default=4096, help="block size to write. A larger block size can bring faster transmission speed, but it need larger memory for micropython device. default 4096.")
+    subcmd_write_parser.add_argument("dst", type=str, help="destination file on device to write")
+    subcmd_write_parser.add_argument("src", type=str, help="source file on localhost to transmit")
+    subcmd_write_parser.add_argument("-q", "--quiet", action="store_true", help="do not output progress bar and report.")
+    subcmd_write_parser.add_argument("--noreport", action="store_true", help="do not output report")
+    subcmd_write_parser.add_argument("-w", "--warning", action="store_true", help="If the dst file exists, user can choose whether to overwrite it. If not specified, always overwrite it.")
+    subcmd_write_parser.add_argument("-v", "--verbose", action="store_true", help="output debug info")
+    parser_dict["write"]=subcmd_write_parser
+    # push
+    subcmd_push_parser = argparse.ArgumentParser("push", description="Push items to device", epilog="See README.md for more information.", add_help = True)
+    subcmd_push_parser.add_argument("-b", "--blocksize", type=int, default=4096, help="block size to push. A larger block size can bring faster transmission speed, but it need larger memory for micropython device. default 4096.")
+    subcmd_push_parser.add_argument("-nr", "--no-recursive", action="store_true", help="when push the directory, not push recursively subitems")
+    subcmd_push_parser.add_argument("dst", help="destination path on device to receive items")
+    subcmd_push_parser.add_argument("src", nargs="+", help="Items to push on localhost. It can be files or directories")
+    subcmd_push_parser.add_argument("-q", "--quiet", action="store_true", help="do not output progress bar and report.")
+    subcmd_push_parser.add_argument("--noreport", action="store_true", help="do not output report")
+    subcmd_push_parser.add_argument("-w", "--warning", action="store_true", help="If the dst file exists, user can choose whether to overwrite it. If not specified, always overwrite it.")
+    subcmd_push_parser.add_argument("-v", "--verbose", action="store_true", help="output debug info")
+    parser_dict["push"]=subcmd_push_parser
+    # read
+    subcmd_read_parser = argparse.ArgumentParser("read", description="Read file from device", epilog="See README.md for more information.", add_help = True)
+    subcmd_read_parser.add_argument("-b", "--blocksize", type=int, default=4096, help="block size to write. A larger block size can bring faster transmission speed, but it need larger memory for micropython device. default 4096.")
+    subcmd_read_parser.add_argument("dst", type=str, help="destination file on localhost to receive")
+    subcmd_read_parser.add_argument("src", type=str, help="source file on device to read")
+    subcmd_read_parser.add_argument("-q", "--quiet", action="store_true", help="do not output progress bar and report.")
+    subcmd_read_parser.add_argument("--noreport", action="store_true", help="do not output report")
+    subcmd_read_parser.add_argument("-w", "--warning", action="store_true", help="If the dst file exists, user can choose whether to overwrite it. If not specified, always overwrite it.")
+    subcmd_read_parser.add_argument("-v", "--verbose", action="store_true", help="output debug info")
+    parser_dict["read"]=subcmd_read_parser
+    # cat
+    subcmd_cat_parser = argparse.ArgumentParser("cat", description="Print file content", epilog="See README.md for more information.", add_help = True)
+    subcmd_cat_parser.add_argument("-b", "--blocksize", type=int, default=4096, help="block size to write. A larger block size can bring faster transmission speed, but it need larger memory for micropython device. default 4096.")
+    subcmd_cat_parser.add_argument("src", nargs="+", help="source files on device to print")
+    subcmd_cat_parser.add_argument("-n", "--number", action="store_true", help="number all output lines")
+    subcmd_cat_parser.add_argument("-s", "--squeeze-blank", action="store_true", help="suppress repeated empty output lines")
+    subcmd_cat_parser.add_argument("-q", "--quiet", action="store_true", help="do not output progress bar and report.")
+    subcmd_cat_parser.add_argument("-w", "--warning", action="store_true", help="If the dst file exists, user can choose whether to overwrite it. If not specified, always overwrite it.")
+    subcmd_cat_parser.add_argument("-v", "--verbose", action="store_true", help="output debug info")
+    parser_dict["cat"]=subcmd_cat_parser
+    # pull
+    subcmd_pull_parser = argparse.ArgumentParser("pull", description="Pull items from device", epilog="See README.md for more information.", add_help = True)
+    subcmd_pull_parser.add_argument("-b", "--blocksize", type=int, default=4096, help="block size to push. A larger block size can bring faster transmission speed, but it need larger memory for micropython device. default 4096.")
+    subcmd_pull_parser.add_argument("-nr", "--no-recursive", action="store_true", help="when push the directory, not push recursively subitems")
+    subcmd_pull_parser.add_argument("dst", help="destination path on localhost to receive items")
+    subcmd_pull_parser.add_argument("src", nargs="+", help="Items to pull on device. It can be files or directories")
+    subcmd_pull_parser.add_argument("-q", "--quiet", action="store_true", help="do not output progress bar and report.")
+    subcmd_pull_parser.add_argument("--noreport", action="store_true", help="do not output report")
+    subcmd_pull_parser.add_argument("-w", "--warning", action="store_true", help="If the dst file exists, user can choose whether to overwrite it. If not specified, always overwrite it.")
+    subcmd_pull_parser.add_argument("-v", "--verbose", action="store_true", help="output debug info")
+    parser_dict["pull"]=subcmd_pull_parser
+    # rm
+    subcmd_rm_parser = argparse.ArgumentParser("rm", description="Remove file or directory on device", epilog="See README.md for more information.", add_help = True)
+    subcmd_rm_parser.add_argument("-d", "--dir", action="store_true", help="support remove directory")
+    subcmd_rm_parser.add_argument("-R", "-r", "--recursive", action="store_true", help="remove items. if it is a directory, remove their contents recursively too")
+    subcmd_rm_parser.add_argument("-p", "--print", action="store_true", help="output items to remove")
+    subcmd_rm_parser.add_argument("paths", nargs="+", help="Items to remove on device. It can be files or directories")
+    subcmd_rm_parser.add_argument("-v", "--verbose", action="store_true", help="output debug info")
+    parser_dict["rm"]=subcmd_rm_parser
+    # rmdir
+    subcmd_rmdir_parser = argparse.ArgumentParser("rmdir", description="Remove empty directory on device", epilog="See README.md for more information.", add_help = True)
+    subcmd_rmdir_parser.add_argument("dirs", nargs="+", help="Directories to remove on device. It must be only directories")
+    subcmd_rmdir_parser.add_argument("-v", "--verbose", action="store_true", help="output debug info")
+    parser_dict["rmdir"]=subcmd_rmdir_parser
+    # mkdir
+    subcmd_mkdir_parser = argparse.ArgumentParser("mkdir", description="Make directory on device", epilog="See README.md for more information.", add_help = True)
+    subcmd_mkdir_parser.add_argument("dirs", nargs="+", help="Items to make on device. It can be files or directories")
+    subcmd_mkdir_parser.add_argument("-v", "--verbose", action="store_true", help="output debug info")
+    parser_dict["mkdir"]=subcmd_mkdir_parser
+    # mv
+    subcmd_mv_parser = argparse.ArgumentParser("mv", description="Move (or Rename) file or directory on device", epilog="See README.md for more information.", add_help = True)
+    subcmd_mv_parser.add_argument("src", help="source file or directory on device to move")
+    subcmd_mv_parser.add_argument("dst", help="destination file or directory on device to move")
+    subcmd_mv_parser.add_argument("-v", "--verbose", action="store_true", help="output debug info")
+    parser_dict["mv"]=subcmd_mv_parser
+    # gc
+    subcmd_gc_parser = argparse.ArgumentParser("gc", description="Get GC info from device", epilog="See README.md for more information.", add_help = True)
+    subcmd_gc_parser.add_argument("-r", "--raw", action="store_true", help="output raw gc info. it has no suffix, unit Hz. if not specified, output human readable format with 1024 base.")
+    subcmd_gc_parser.add_argument("-cl", "--collect", action="store_true", help="call gc.collect() before get info")
+    subcmd_gc_parser.add_argument("-c", "--csv", action="store_true", help="output csv format")
+    subcmd_gc_parser.add_argument("-v", "--verbose", action="store_true", help="output debug info")
+    parser_dict["gc"]=subcmd_gc_parser
+    # stat
+    subcmd_stat_parser = argparse.ArgumentParser("stat", description="Get stat(os.stat/os.statvfs) from device", epilog="See README.md for more information.", add_help = True)
+    subcmd_stat_parser.add_argument("-f", "--file-system", action="store_true", help="get filesystem stat(os.statvfs)")
+    subcmd_stat_parser.add_argument("paths", nargs="+", help="paths to get stat")
+    subcmd_stat_parser.add_argument("-v", "--verbose", action="store_true", help="output debug info")
+    parser_dict["stat"]=subcmd_stat_parser
 
     all_commands = ["help", "shell", "ver", "uname", "uid", "freq", "pwd", "cd", "ls", "tree", "write", "push", "read", "cat", "pull", "rm", "rmdir", "mkdir", "mv", "gc", "stat"]
     colorful = False
@@ -1172,182 +1365,6 @@ if __name__ == "__main__":
         octs = oct(mode)[2:]
         oocts = octs[-4:].zfill(4)
         return oocts
-
-    main_parser = argparse.ArgumentParser(description = "Connect to MicroPython device and do something with subcommands.", epilog = "See README.md for more information.", add_help = True)
-    main_parser.add_argument("--subcmd-help"              ,                                             default="",     help="print help message of subcommand")
-    main_parser.add_argument("--version", action="version", version=f"{__version__}")
-    main_parser.add_argument("-p" , "--port"              ,                                             default="",     help="serial port")
-    main_parser.add_argument("-B" , "--baudrate"          , type=int,                                   default=115200, help="serial baudrate. default 115200")
-    main_parser.add_argument("-P" , "--parity"            ,             choices=serial.Serial.PARITIES, default="N",    help="serial parity. default N")
-    main_parser.add_argument("-S" , "--stopbits"          , type=float, choices=serial.Serial.STOPBITS, default=1,      help="serial stopbits. default 1")
-    main_parser.add_argument("-To", "--timeout"           , type=float,                                 default=1,      help="serial timeout. if 0, no timeout. default 1")
-    main_parser.add_argument("-Tw", "--write-timeout"     , type=float,                                 default=1,      help="serial write timeout. if 0, no timeout. default 1")
-    main_parser.add_argument("-Tb", "--inter-byte-timeout", type=float,                                 default=0.1,    help="serial inter-byte timeout. default 0.1")
-    main_parser.add_argument("-wt", "--wait-timeout"      , type=float,                                 default=10,     help="serial wait timeout. default 10")
-
-    
-    main_parser.add_argument("-pbmaxw", "--progressbar-maxwidth", type=int, default=50, help="progressbar max width. unit is chars. it must be > 0. default 50.")
-    main_parser.add_argument("-pbminw", "--progressbar-minwidth", type=int, default=5, help="progressbar min width. unit is chars. it must be > 0. default 5.")
-
-    main_parser.add_argument("-nc" , "--no-colorful"      , action="store_false", help="make output not colorful. if terminal not support ANSI color escape sequence, recommended select this option")
-    main_parser.add_argument("-v" , "--verbose"           , action="store_true", help="output debug info")
-    
-    # subcommand's parser must be named as subcmd_{subcommand}_parser format
-
-    # help
-    subcmd_help_parser = argparse.ArgumentParser("help", description = "Print help message of subcommand.", epilog = "See README.md for more information.", add_help = True)
-    subcmd_help_parser.add_argument("cmds", nargs="*", help="subcommands to print help message. if not specified, print help message of all subcommands.")
-    subcmd_help_parser.add_argument("-u", "--usage", action="store_true", help="print usage")
-    # shell
-    subcmd_shell_parser = argparse.ArgumentParser("shell", description = "Into a shell to key and run subcommands conveniently.", epilog = "See README.md for more information.", add_help = True)
-    # shell-exit
-    subcmd_shell_exit_parser = argparse.ArgumentParser("exit", description = "Exit shell.", epilog = "See README.md for more information.", add_help = True)
-    # ver
-    subcmd_ver_parser = argparse.ArgumentParser("ver", description="Print version of this project", epilog="See README.md for more information.", add_help = True)
-    subcmd_ver_parser.add_argument("-c", "--csv", action="store_true", help="output csv format")
-    subcmd_ver_parser.add_argument("-v", "--verbose", action="store_true", help="output debug info")
-    # uname
-    subcmd_uname_parser = argparse.ArgumentParser("uname", description="Print device's system information. if no option(except --csv(-c) and --verbose), output kernel name.", epilog="See README.md for more information.", add_help = True)
-    subcmd_uname_parser.add_argument("-a", "--all", action="store_true", help="output all information")
-    subcmd_uname_parser.add_argument("-s", "--kernel-name", action="store_true", help="output the kernel name. this is the normal option")
-    subcmd_uname_parser.add_argument("-n", "--nodename", action="store_true", help="output the network node hostname")
-    subcmd_uname_parser.add_argument("-r", "--kernel-release", action="store_true", help="output the kernel release")
-    subcmd_uname_parser.add_argument("-v", "--kernel-version", action="store_true", help="output the kernel version")
-    subcmd_uname_parser.add_argument("-m", "--machine", action="store_true", help="output the machine hardware name")
-    subcmd_uname_parser.add_argument("-c", "--csv", action="store_true", help="output csv format")
-    subcmd_uname_parser.add_argument(      "--verbose", action="store_true", help="output debug info")
-    # uid
-    subcmd_uid_parser = argparse.ArgumentParser("uid", description="Print device's unique id", epilog="See README.md for more information.", add_help = True)
-    subcmd_uid_parser.add_argument("-v", "--verbose", action="store_true", help="output debug info")
-    # freq
-    subcmd_freq_parser = argparse.ArgumentParser("freq", description="Print device's cpu frequency", epilog="See README.md for more information.", add_help = True)
-    subcmd_freq_parser.add_argument("-r", "--raw", action="store_true", help="output raw cpu frequency. it has no suffix, unit Hz.")
-    subcmd_freq_parser.add_argument("-v", "--verbose", action="store_true", help="output debug info")
-    # pwd
-    subcmd_pwd_parser = argparse.ArgumentParser("pwd", description="Print device's current working directory", epilog="See README.md for more information.", add_help = True)
-    subcmd_pwd_parser.add_argument("-l", "--local", action="store_true", help="output localhost's current working directory")
-    subcmd_pwd_parser.add_argument("-v", "--verbose", action="store_true", help="output debug info")
-    # cd
-    subcmd_cd_parser = argparse.ArgumentParser("cd", description="Change device's current working directory", epilog="See README.md for more information.", add_help = True)
-    subcmd_cd_parser.add_argument("dir", nargs="?", default="/", help="dir to change to. if not specified, change to /")
-    subcmd_cd_parser.add_argument("-l", "--local", action="store_true", help="output localhost's current working directory")
-    subcmd_cd_parser.add_argument("-v", "--verbose", action="store_true", help="output debug info")
-    # ls
-    subcmd_ls_parser = argparse.ArgumentParser("ls", description="List device's files and directories", epilog="See README.md for more information.", add_help = True)
-    subcmd_ls_parser.add_argument("-a", "--all", action="store_true", help="show all files and directories, including hidden ones")
-    subcmd_ls_parser.add_argument("-R", "--recursive", action="store_true", help="recursively list directories")
-    subcmd_ls_parser.add_argument("-l", "--long", action="store_true", help="show detailed information about files and directories")
-    subcmd_ls_sort_parser_group = subcmd_ls_parser.add_mutually_exclusive_group()
-    subcmd_ls_sort_parser_group.add_argument("-S", "--sort-size", action="store_true", help="sort by size")
-    subcmd_ls_sort_parser_group.add_argument("-N", "--sort-name", action="store_true", help="sort by name")
-    subcmd_ls_parser.add_argument("-r", "--reverse", action="store_true", help="reverse the order of the sort")
-    subcmd_ls_pack_parser_group = subcmd_ls_parser.add_mutually_exclusive_group()
-    subcmd_ls_pack_parser_group.add_argument(      "--row", action="store_true", help="only show itesms in a single row")
-    subcmd_ls_pack_parser_group.add_argument("-c", "--column", action="store_true", help="only show itesms in a single column")
-    subcmd_ls_parser.add_argument("--sep", default=3, type=int, help="number of spaces between items. It must be >= 0. default 3")
-    subcmd_ls_parser.add_argument("-sC", "--sep-comma", action="store_true", help="use comma as separator")
-    subcmd_ls_parser.add_argument("-Q", "--quote", action="store_true", help="quote items")
-    subcmd_ls_parser.add_argument("-s", "--slash", action="store_true", help="append / to directories")
-    subcmd_ls_size_parser_group = subcmd_ls_parser.add_mutually_exclusive_group()
-    subcmd_ls_size_parser_group.add_argument("-si", "--si", action="store_true", help="use SI units. 1K = 1000")
-    subcmd_ls_size_parser_group.add_argument("-bi", "--bi", action="store_true", help="use binary units. 1K = 1024")
-    subcmd_ls_parser.add_argument("-dp", "--decimal-places", default=3, type=int, help="number of decimal places. It must be >= -1. if it is -1, the decimal places is no limits. default 3")
-    subcmd_ls_parser.add_argument("-J", "--json", action="store_true", help="output json format")
-    subcmd_ls_parser.add_argument("dir", nargs="?", default=".", help="dir to list. if not specified, list .")
-    subcmd_ls_parser.add_argument("-v", "--verbose", action="store_true", help="output debug info")
-    # tree
-    subcmd_tree_parser = argparse.ArgumentParser("tree", description="List device's files and directories in tree format", epilog="See README.md for more information.", add_help = True)
-    subcmd_tree_parser.add_argument("-sl", "--slash", action="store_true", help="append / to directories")
-    subcmd_tree_parser.add_argument("-hl", "--hline-len", default=2, type=int, help="number of horizontal line with every items. It must be >= 0. default 2")
-    subcmd_tree_parser.add_argument("--noreport", action="store_true", help="Turn off file/directory count at end of tree listing")
-    subcmd_tree_parser.add_argument("-Q", "--quote", action="store_true", help="quote items")
-    subcmd_tree_parser.add_argument("-L", "--level", default=-1, type=int, help="max display depth of the directory tree. It must be > 0. default not limited")
-    subcmd_tree_outfmt_parser_group = subcmd_tree_parser.add_mutually_exclusive_group()
-    subcmd_tree_outfmt_parser_group.add_argument("-J", "--json", action="store_true", help="output json format")
-    subcmd_tree_outfmt_parser_group.add_argument("-X", "--xml", action="store_true", help="output xml format")
-    subcmd_tree_parser.add_argument("dir", nargs="*", default=["."], help="dir to list. if not specified, list .")
-    subcmd_tree_parser.add_argument("-v", "--verbose", action="store_true", help="output debug info")
-    # write
-    subcmd_write_parser = argparse.ArgumentParser("write", description="Write file to file on device", epilog="See README.md for more information.", add_help = True)
-    subcmd_write_parser.add_argument("-b", "--blocksize", type=int, default=4096, help="block size to write. A larger block size can bring faster transmission speed, but it need larger memory for micropython device. default 4096.")
-    subcmd_write_parser.add_argument("dst", type=str, help="destination file on device to write")
-    subcmd_write_parser.add_argument("src", type=str, help="source file on localhost to transmit")
-    subcmd_write_parser.add_argument("-q", "--quiet", action="store_true", help="do not output progress bar and report.")
-    subcmd_write_parser.add_argument("--noreport", action="store_true", help="do not output report")
-    subcmd_write_parser.add_argument("-w", "--warning", action="store_true", help="If the dst file exists, user can choose whether to overwrite it. If not specified, always overwrite it.")
-    subcmd_write_parser.add_argument("-v", "--verbose", action="store_true", help="output debug info")
-    # push
-    subcmd_push_parser = argparse.ArgumentParser("push", description="Push items to device", epilog="See README.md for more information.", add_help = True)
-    subcmd_push_parser.add_argument("-b", "--blocksize", type=int, default=4096, help="block size to push. A larger block size can bring faster transmission speed, but it need larger memory for micropython device. default 4096.")
-    subcmd_push_parser.add_argument("-nr", "--no-recursive", action="store_true", help="when push the directory, not push recursively subitems")
-    subcmd_push_parser.add_argument("dst", help="destination path on device to receive items")
-    subcmd_push_parser.add_argument("src", nargs="+", help="Items to push on localhost. It can be files or directories")
-    subcmd_push_parser.add_argument("-q", "--quiet", action="store_true", help="do not output progress bar and report.")
-    subcmd_push_parser.add_argument("--noreport", action="store_true", help="do not output report")
-    subcmd_push_parser.add_argument("-w", "--warning", action="store_true", help="If the dst file exists, user can choose whether to overwrite it. If not specified, always overwrite it.")
-    subcmd_push_parser.add_argument("-v", "--verbose", action="store_true", help="output debug info")
-    # read
-    subcmd_read_parser = argparse.ArgumentParser("read", description="Read file from device", epilog="See README.md for more information.", add_help = True)
-    subcmd_read_parser.add_argument("-b", "--blocksize", type=int, default=4096, help="block size to write. A larger block size can bring faster transmission speed, but it need larger memory for micropython device. default 4096.")
-    subcmd_read_parser.add_argument("dst", type=str, help="destination file on localhost to receive")
-    subcmd_read_parser.add_argument("src", type=str, help="source file on device to read")
-    subcmd_read_parser.add_argument("-q", "--quiet", action="store_true", help="do not output progress bar and report.")
-    subcmd_read_parser.add_argument("--noreport", action="store_true", help="do not output report")
-    subcmd_read_parser.add_argument("-w", "--warning", action="store_true", help="If the dst file exists, user can choose whether to overwrite it. If not specified, always overwrite it.")
-    subcmd_read_parser.add_argument("-v", "--verbose", action="store_true", help="output debug info")
-    # cat
-    subcmd_cat_parser = argparse.ArgumentParser("cat", description="Print file content", epilog="See README.md for more information.", add_help = True)
-    subcmd_cat_parser.add_argument("-b", "--blocksize", type=int, default=4096, help="block size to write. A larger block size can bring faster transmission speed, but it need larger memory for micropython device. default 4096.")
-    subcmd_cat_parser.add_argument("src", nargs="+", help="source files on device to print")
-    subcmd_cat_parser.add_argument("-n", "--number", action="store_true", help="number all output lines")
-    subcmd_cat_parser.add_argument("-s", "--squeeze-blank", action="store_true", help="suppress repeated empty output lines")
-    subcmd_cat_parser.add_argument("-q", "--quiet", action="store_true", help="do not output progress bar and report.")
-    subcmd_cat_parser.add_argument("-w", "--warning", action="store_true", help="If the dst file exists, user can choose whether to overwrite it. If not specified, always overwrite it.")
-    subcmd_cat_parser.add_argument("-v", "--verbose", action="store_true", help="output debug info")
-    # pull
-    subcmd_pull_parser = argparse.ArgumentParser("pull", description="Pull items from device", epilog="See README.md for more information.", add_help = True)
-    subcmd_pull_parser.add_argument("-b", "--blocksize", type=int, default=4096, help="block size to push. A larger block size can bring faster transmission speed, but it need larger memory for micropython device. default 4096.")
-    subcmd_pull_parser.add_argument("-nr", "--no-recursive", action="store_true", help="when push the directory, not push recursively subitems")
-    subcmd_pull_parser.add_argument("dst", help="destination path on localhost to receive items")
-    subcmd_pull_parser.add_argument("src", nargs="+", help="Items to pull on device. It can be files or directories")
-    subcmd_pull_parser.add_argument("-q", "--quiet", action="store_true", help="do not output progress bar and report.")
-    subcmd_pull_parser.add_argument("--noreport", action="store_true", help="do not output report")
-    subcmd_pull_parser.add_argument("-w", "--warning", action="store_true", help="If the dst file exists, user can choose whether to overwrite it. If not specified, always overwrite it.")
-    subcmd_pull_parser.add_argument("-v", "--verbose", action="store_true", help="output debug info")
-    # rm
-    subcmd_rm_parser = argparse.ArgumentParser("rm", description="Remove file or directory on device", epilog="See README.md for more information.", add_help = True)
-    subcmd_rm_parser.add_argument("-d", "--dir", action="store_true", help="support remove directory")
-    subcmd_rm_parser.add_argument("-R", "-r", "--recursive", action="store_true", help="remove items. if it is a directory, remove their contents recursively too")
-    subcmd_rm_parser.add_argument("-p", "--print", action="store_true", help="output items to remove")
-    subcmd_rm_parser.add_argument("paths", nargs="+", help="Items to remove on device. It can be files or directories")
-    subcmd_rm_parser.add_argument("-v", "--verbose", action="store_true", help="output debug info")
-    # rmdir
-    subcmd_rmdir_parser = argparse.ArgumentParser("rmdir", description="Remove empty directory on device", epilog="See README.md for more information.", add_help = True)
-    subcmd_rmdir_parser.add_argument("dirs", nargs="+", help="Directories to remove on device. It must be only directories")
-    subcmd_rmdir_parser.add_argument("-v", "--verbose", action="store_true", help="output debug info")
-    # mkdir
-    subcmd_mkdir_parser = argparse.ArgumentParser("mkdir", description="Make directory on device", epilog="See README.md for more information.", add_help = True)
-    subcmd_mkdir_parser.add_argument("dirs", nargs="+", help="Items to make on device. It can be files or directories")
-    subcmd_mkdir_parser.add_argument("-v", "--verbose", action="store_true", help="output debug info")
-    # mv
-    subcmd_mv_parser = argparse.ArgumentParser("mv", description="Move (or Rename) file or directory on device", epilog="See README.md for more information.", add_help = True)
-    subcmd_mv_parser.add_argument("src", help="source file or directory on device to move")
-    subcmd_mv_parser.add_argument("dst", help="destination file or directory on device to move")
-    subcmd_mv_parser.add_argument("-v", "--verbose", action="store_true", help="output debug info")
-    # gc
-    subcmd_gc_parser = argparse.ArgumentParser("gc", description="Get GC info from device", epilog="See README.md for more information.", add_help = True)
-    subcmd_gc_parser.add_argument("-r", "--raw", action="store_true", help="output raw gc info. it has no suffix, unit Hz. if not specified, output human readable format with 1024 base.")
-    subcmd_gc_parser.add_argument("-cl", "--collect", action="store_true", help="call gc.collect() before get info")
-    subcmd_gc_parser.add_argument("-c", "--csv", action="store_true", help="output csv format")
-    subcmd_gc_parser.add_argument("-v", "--verbose", action="store_true", help="output debug info")
-    # stat
-    subcmd_stat_parser = argparse.ArgumentParser("stat", description="Get stat(os.stat/os.statvfs) from device", epilog="See README.md for more information.", add_help = True)
-    subcmd_stat_parser.add_argument("-f", "--file-system", action="store_true", help="get filesystem stat(os.statvfs)")
-    subcmd_stat_parser.add_argument("paths", nargs="+", help="paths to get stat")
-    subcmd_stat_parser.add_argument("-v", "--verbose", action="store_true", help="output debug info")
-
-
-
 
     maincmd_argv = []
     subcmd_argv_list = []
@@ -1595,7 +1612,7 @@ if __name__ == "__main__":
                 s_args = subcmd_parse_args(subcmd_help_parser, subcmd_argv)
                 if not s_args: return
                 def __subcmd_help_printsubcmdusg_lfunc(s_args, subcmd_name: str):
-                    subcmd_parser: argparse.ArgumentParser = eval(f"subcmd_{subcmd_name}_parser")
+                    subcmd_parser: argparse.ArgumentParser = parser_dict[subcmd_name]
                     print(subcmd_parser.prog+":")
                     if s_args.usage:
                         print("    "+subcmd_parser.format_help().replace("\n", "\n    "))
@@ -2392,3 +2409,6 @@ if __name__ == "__main__":
         match_subcmd(subcmd_argv)
 
     opt.close(verbose=args.verbose)
+
+if __name__ == "__main__":
+    main()

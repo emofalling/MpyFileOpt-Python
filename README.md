@@ -81,4 +81,3 @@ Whether reading or writing, if the block size is too large, the device will thro
 
 $^1$: Baudrate ÷ 8, in units of `B/s`. When the baudrate is `115200`, this critical point is `14.4KB/s` (`1K=1024`).  
 $^2$: It depends on the device. Actual tests show that a block size of `4096` bytes can ensure that most devices are close to this critical point.
-
