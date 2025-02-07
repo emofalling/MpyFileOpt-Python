@@ -16,12 +16,26 @@
 
 ## 安装和使用
 
-### 以命令行方式使用
+### 安装
 
 如果希望直接安装，可以使用pip安装（具体视情况而定）：
 
 ```shell
 pip install mpyfileopt
+```
+
+或者，手动打包安装（具体视情况而定）：
+
+```shell
+git clone https://github.com/emofalling/MpyFileOpt-Python.git
+cd ./MpyFileOpt-Python
+
+python -m build --wheel
+# 若未安装`build`，需先安装`build`（具体视情况而定）：
+# python -m pip install build
+
+# 然后找到./dist下后缀为.whl的文件，使用pip进行安装（具体视情况而定）：
+python -m pip install ./dist/your_whl_file.whl
 ```
 
 否则，可以先拷贝此项目后直接定位到目录[./mpyfopt](./mpyfopt)
@@ -32,7 +46,9 @@ cd ./MpyFileOpt-Python/mpyfopt
 # 若使用此方法，在之后关于mpyfopt中的命令的mpyfopt应替换为./mpyfopt或.\mpyfopt(视情况而定)
 ```
 
-然后，验证您可以运行mpyfopt程序并获得帮助输出：
+### 以命令行方式使用
+
+验证您可以运行mpyfopt程序并获得帮助输出：
 
 ```shell
 mpyfopt --help

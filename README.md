@@ -16,12 +16,26 @@ It is suitable for scenarios where efficient operations on the MicroPython devic
 
 ## Installation and use
 
-### Using as a Command Line Tool
+### Install
 
 If you prefer to install directly, you can use pip (depending on the situation):
 
 ```shell
 pip install mpyfileopt
+```
+
+Or, manually package and install (depending on the situation):
+
+```shell
+git clone https://github.com/emofalling/MpyFileOpt-Python.git
+cd ./MpyFileOpt-Python
+
+python -m build --wheel
+# If `build` is not installed, please install `build` first (depending on the situation):
+# python -m pip install build
+
+# Then find the file with the .whl extension in ./dist, and install it using pip (depending on the situation):
+python -m pip install ./dist/your_whl_file.whl
 ```
 
 Otherwise, you can first clone this project and then navigate directly to the directory [./mpyfopt](./mpyfopt):
@@ -30,10 +44,11 @@ Otherwise, you can first clone this project and then navigate directly to the di
 git clone https://github.com/emofalling/MpyFileOpt-Python.git
 cd ./MpyFileOpt-Python/mpyfopt
 # If you use this way, in subsequent commands related to mpyfopt, replace mpyfopt with ./mpyfopt or .\mpyfopt (as appropriate).
-
 ```
 
-Then, verify that you can run the mpyfopt program and get the help output:
+### Using as a Command Line Tool
+
+Verify that you can run the mpyfopt program and get the help output:
 
 ```shell
 mpyfopt --help

@@ -54,7 +54,7 @@ mpyfopt [-h] [--subcmd-help SUBCMD_HELP] [--version]
 - `--subcmd-help SUBCMD_HELP`: 显示子命令的帮助信息并退出。`SUBCMD_HELP`语法：
   - 当`SUBCMD_HELP`为`*`时，显示所有子命令的帮助信息，但不显示每个子命令的用法。
   - 当`SUBCMD_HELP`为`:<subcmd>`时，显示子命令`<subcmd>`的帮助信息，且显示它的用法。
-- `--version`: 显示程序版本号并退出。
+- `-V`,`--version`: 显示程序版本号并退出。
 - `-p PORT`,`--port PORT`: 串口名。
 - `-B BAUDRATE`,`--baudrate BAUDRATE`: 串口波特率，默认为115200。
 - `-P PARITY`,`--parity PARITY`: 串口校验位，默认为N，即无校验（具体参考实际输出）。

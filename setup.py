@@ -1,9 +1,75 @@
+"""
+DON'T DIRECTLY EXECUTE THIS FILE!
+DON'T DIRECTLY EXECUTE THIS FILE!
+DON'T DIRECTLY EXECUTE THIS FILE!
+DON'T DIRECTLY EXECUTE THIS FILE!
+DON'T DIRECTLY EXECUTE THIS FILE!
+DON'T DIRECTLY EXECUTE THIS FILE!
+DON'T DIRECTLY EXECUTE THIS FILE!
+DON'T DIRECTLY EXECUTE THIS FILE!
+DON'T DIRECTLY EXECUTE THIS FILE!
+DON'T DIRECTLY EXECUTE THIS FILE!
+DON'T DIRECTLY EXECUTE THIS FILE!
+DON'T DIRECTLY EXECUTE THIS FILE!
+DON'T DIRECTLY EXECUTE THIS FILE!
+DON'T DIRECTLY EXECUTE THIS FILE!
+DON'T DIRECTLY EXECUTE THIS FILE!
+DON'T DIRECTLY EXECUTE THIS FILE!
+DON'T DIRECTLY EXECUTE THIS FILE!
+DON'T DIRECTLY EXECUTE THIS FILE!
+DON'T DIRECTLY EXECUTE THIS FILE!
+YOU SHOULD USE `build` FOR PACKAGING
+YOU SHOULD USE `build` FOR PACKAGING
+YOU SHOULD USE `build` FOR PACKAGING
+YOU SHOULD USE `build` FOR PACKAGING
+YOU SHOULD USE `build` FOR PACKAGING
+YOU SHOULD USE `build` FOR PACKAGING
+YOU SHOULD USE `build` FOR PACKAGING
+YOU SHOULD USE `build` FOR PACKAGING
+YOU SHOULD USE `build` FOR PACKAGING
+YOU SHOULD USE `build` FOR PACKAGING
+YOU SHOULD USE `build` FOR PACKAGING
+YOU SHOULD USE `build` FOR PACKAGING
+YOU SHOULD USE `build` FOR PACKAGING
+YOU SHOULD USE `build` FOR PACKAGING
+YOU SHOULD USE `build` FOR PACKAGING
+YOU SHOULD USE `build` FOR PACKAGING
+YOU SHOULD USE `build` FOR PACKAGING
+YOU SHOULD USE `build` FOR PACKAGING
+YOU SHOULD USE `build` FOR PACKAGING
+"""
+
 from setuptools import setup, find_packages
-import mpyfopt
-import serial
+
+version      = "1.0"
+author       = "emofalling"
+author_email = "emofalling@dingtalk.com"
 
 with open("README.md", "r", encoding="utf-8") as f:
     long_description = f.read()
+#packages = find_packages()
+packages = ["mpyfopt"] # find_packages will add subpackages
+print(f"[INFO] packages: {packages}")
+setup(name="mpyfileopt",    
+      version=version,        
+      description="Efficient MicroPython Device File System Management Tool",
+      long_description=long_description,
+      long_description_content_type="text/markdown",
+      author=author,
+      author_email=author_email,
+      url="https://github.com/emofalling/MpyFileOpt-Python",
+      install_requires=[
+        "pyserial>=3.0"
+      ],	
+      license="MIT",
+      entry_points={
+        'console_scripts': [
+            'mpyfopt=mpyfopt.mpyfopt:main',
+        ],
+      },
+      python_requires='>=3.10',
+      packages=packages
+     )
 """
 def setup(
     *,
@@ -51,23 +117,3 @@ def setup(
     **attrs: Any,
 ) -> Distribution: ...
 """
-setup(name="mpyfileopt",    
-      version=mpyfopt.__version__,        
-      description="Efficient MicroPython Device File System Management Tool",
-      long_description=long_description,
-      long_description_content_type="text/markdown",
-      author="emofalling",
-      author_email="emofalling@dingtalk.com",
-      url="https://github.com/emofalling/MpyFileOpt-Python",
-      install_requires=[
-        "pyserial>=3.0"
-      ],	
-      license="MIT",
-      entry_points={
-        'console_scripts': [
-            'mpyfopt=mpyfopt.mpyfopt:main',
-        ],
-      },
-      python_requires='>=3.10',
-      packages=find_packages()
-     )

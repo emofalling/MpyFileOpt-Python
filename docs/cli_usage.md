@@ -54,7 +54,7 @@ Args & Options:
 - `--subcmd-help SUBCMD_HELP`: Displays the help information for the subcommands and exits. The syntax for `SUBCMD_HELP` is:
   - When `SUBCMD_HELP` is `*`, it displays the help information for all subcommands but does not show the usage of each subcommand.
   - When `SUBCMD_HELP` is `:<subcmd>`, it displays the help information for the subcommand `<subcmd>` and shows its usage.
-- `--version`: Displays the program version number and exits.
+- `-V`,`--version`: Displays the program version number and exits.
 - `-p PORT`,`--port PORT`: The name of the serial port.
 - `-B BAUDRATE`,`--baudrate BAUDRATE`: The baud rate of the serial port, with a default of 115200.
 - `-P PARITY`,`--parity PARITY`: The parity bit of the serial port, with a default of N (no parity check, specifics refer to actual output).

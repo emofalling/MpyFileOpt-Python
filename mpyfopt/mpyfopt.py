@@ -1143,7 +1143,7 @@ def main():
 
     main_parser = argparse.ArgumentParser(description = "Connect to MicroPython device and do something with subcommands.", epilog = "See README.md for more information.", add_help = True)
     main_parser.add_argument("--subcmd-help"              ,                                             default="",              help="print help message of subcommand")
-    main_parser.add_argument("--version", action="version", version=f"{__version__}")
+    main_parser.add_argument("-V" , "--version", action="version", version=f"{__version__}")
     main_parser.add_argument("-p" , "--port"              ,                                             default="",              help="serial port")
     main_parser.add_argument("-B" , "--baudrate"          , type=int,                                   default=115200,          help="serial baudrate. default 115200")
     main_parser.add_argument("-P" , "--parity"            ,             choices=serial.Serial.PARITIES, default=SER_PARITY_NONE, help="serial parity. default N")
