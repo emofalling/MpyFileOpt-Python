@@ -22,7 +22,7 @@ def ampy():
     os.system(cmd)
 @testtime
 def mpyf():
-    cmd = f"{pss}\"../mpyfopt/mpyfopt.py\" {PORT} write test.txt test.txt"
+    cmd = f"{pss}\"../mpyfopt/mpyfopt.py\" -p {PORT} write test.txt test.txt"
     print(f"mpyfopt test start, command: {cmd}")
     # mpyfopt
     os.system(cmd)
