@@ -42,8 +42,8 @@ mpyfopt -p /dev/ttyUSB0 push ./receive ./push # mpyfopt -p /dev/ttyUSB0 -> push 
 ## 主命令参数
 
 ```shell
-mpyfopt [-h] [--subcmd-help SUBCMD_HELP] [--version]
-        [-p PORT] [-B BAUDRATE] [-P PARITY] [-S STOPBITS]
+mpyfopt [-h] [--subcmd-help SUBCMD_HELP] [-V] [-s] 
+        [-p PORT] [-B BAUDRATE] [-P PARITY] [-S STOPBITS] 
         [-To TIMEOUT] [-Tw WRITE_TIMEOUT] [-Tb INTER_BYTE_TIMEOUT] [-wt WAIT_TIMEOUT]
         [-pbmaxw PROGRESSBAR_MAXWIDTH] [-pbminw PROGRESSBAR_MINWIDTH] [-nc] [-v]
 ```
@@ -55,6 +55,7 @@ mpyfopt [-h] [--subcmd-help SUBCMD_HELP] [--version]
   - 当`SUBCMD_HELP`为`*`时，显示所有子命令的帮助信息，但不显示每个子命令的用法。
   - 当`SUBCMD_HELP`为`:<subcmd>`时，显示子命令`<subcmd>`的帮助信息，且显示它的用法。
 - `-V`,`--version`: 显示程序版本号并退出。
+- `-s`,`--scan`: 扫描并显示所有串口，然后退出。
 - `-p PORT`,`--port PORT`: 串口名。
 - `-B BAUDRATE`,`--baudrate BAUDRATE`: 串口波特率，默认为115200。
 - `-P PARITY`,`--parity PARITY`: 串口校验位，默认为N，即无校验（具体参考实际输出）。

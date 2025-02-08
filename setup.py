@@ -41,7 +41,7 @@ YOU SHOULD USE `build` FOR PACKAGING
 
 from setuptools import setup, find_packages
 
-version      = "1.0.1"
+version      = "1.1"
 author       = "emofalling"
 author_email = "emofalling@dingtalk.com"
 

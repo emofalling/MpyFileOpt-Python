@@ -42,8 +42,8 @@ mpyfopt -p /dev/ttyUSB0 push ./receive ./push # mpyfopt -p /dev/ttyUSB0 -> push 
 ## Main command parameters
 
 ```shell
-mpyfopt [-h] [--subcmd-help SUBCMD_HELP] [--version]
-        [-p PORT] [-B BAUDRATE] [-P PARITY] [-S STOPBITS]
+mpyfopt [-h] [--subcmd-help SUBCMD_HELP] [-V] [-s] 
+        [-p PORT] [-B BAUDRATE] [-P PARITY] [-S STOPBITS] 
         [-To TIMEOUT] [-Tw WRITE_TIMEOUT] [-Tb INTER_BYTE_TIMEOUT] [-wt WAIT_TIMEOUT]
         [-pbmaxw PROGRESSBAR_MAXWIDTH] [-pbminw PROGRESSBAR_MINWIDTH] [-nc] [-v]
 ```
@@ -55,6 +55,7 @@ Args & Options:
   - When `SUBCMD_HELP` is `*`, it displays the help information for all subcommands but does not show the usage of each subcommand.
   - When `SUBCMD_HELP` is `:<subcmd>`, it displays the help information for the subcommand `<subcmd>` and shows its usage.
 - `-V`,`--version`: Displays the program version number and exits.
+- `-s`,`--scan`: scan and show all serial ports then exit.
 - `-p PORT`,`--port PORT`: The name of the serial port.
 - `-B BAUDRATE`,`--baudrate BAUDRATE`: The baud rate of the serial port, with a default of 115200.
 - `-P PARITY`,`--parity PARITY`: The parity bit of the serial port, with a default of N (no parity check, specifics refer to actual output).

@@ -18,7 +18,7 @@ import serial
 # types
 from collections import namedtuple
 
-__version__ = "1.0"
+__version__ = "1.1"
 __author__ = "emofalling"
 
 micropython_code_file = f"{os.path.dirname(__file__)}/on_micropython/src.py"
@@ -1088,6 +1088,7 @@ def main():
     import math
     import json
     from io import BytesIO
+    from serial.tools import list_ports
     argv = sys.argv[1:]
     # terminal codes
     ANSI_RESET_ALL          = "\x1b[0m"
@@ -1142,8 +1143,9 @@ def main():
             return reprobj
 
     main_parser = argparse.ArgumentParser(description = "Connect to MicroPython device and do something with subcommands.", epilog = "See README.md for more information.", add_help = True)
-    main_parser.add_argument("--subcmd-help"              ,                                             default="",              help="print help message of subcommand")
-    main_parser.add_argument("-V" , "--version", action="version", version=f"{__version__}")
+    main_parser.add_argument("--subcmd-help"              ,                                             default="",              help="print help message of subcommand and exit")
+    main_parser.add_argument("-V" , "--version", action="version", version=f"{__version__}",                                     help="print version and exit")
+    main_parser.add_argument("-s" , "--scan"              , action="store_true",                                                 help="scan and show all serial ports then exit")
     main_parser.add_argument("-p" , "--port"              ,                                             default="",              help="serial port")
     main_parser.add_argument("-B" , "--baudrate"          , type=int,                                   default=115200,          help="serial baudrate. default 115200")
     main_parser.add_argument("-P" , "--parity"            ,             choices=serial.Serial.PARITIES, default=SER_PARITY_NONE, help="serial parity. default N")
@@ -2385,6 +2387,32 @@ def main():
             match_subcmd(["help"])
         else:
             match_subcmd(["help", args.subcmd_help[1:], "--usage"])
+        exit()
+    if args.scan:
+        SCAN_SEP = "   "
+        S_DEVICE = "Device"
+        S_NAME = "Name"
+        S_DESC = "Description"
+        port_name_list  : list[str] = []
+        port_device_list: list[str] = []
+        port_desc_list  : list[str] = []
+        port_name_namemax = len(S_NAME)
+        port_device_namemax = len(S_DEVICE)
+        port_desc_namemax = len(S_DESC)
+        for port in list_ports.comports():
+            port_name_list.append(port.name)
+            port_device_list.append(port.device)
+            port_desc_list.append(port.description)
+            port_name_namemax = max(port_name_namemax, len(port.name))
+            port_device_namemax = max(port_device_namemax, len(port.device))
+            port_desc_namemax = max(port_desc_namemax, len(port.description))
+        if len(port_device_list) == 0:
+            print("No available ports")
+            exit()
+        print(f"{S_NAME:<{port_name_namemax}}{SCAN_SEP}{S_DEVICE:<{port_device_namemax}}{SCAN_SEP}{S_DESC:<{port_desc_namemax}}")
+        print(ANSI_CHAR_HLINE * (port_name_namemax + port_device_namemax + port_desc_namemax + len(SCAN_SEP) * 2))
+        for port_name, port_device, port_desc in zip(port_name_list, port_device_list, port_desc_list):
+            print(f"{port_name:<{port_name_namemax}}{SCAN_SEP}{port_device:<{port_device_namemax}}{SCAN_SEP}{port_desc:<{port_desc_namemax}}")
         exit()
     if args.port == "":
         logerr("port is not specified")
